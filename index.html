@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="ICE - In Case of Emergency. Store your medical information and access it via QR code.">
+    <title>ICE – In Case of Emergency</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-heartbeat text-red-600 text-2xl mr-2"></i>
+                    <span class="text-xl font-bold text-gray-800">ICE</span>
+                </div>
+                <div class="hidden md:flex space-x-4 items-center">
+                    <a href="index.html" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                    <a href="register.html" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Create Profile</a>
+                    <span id="userInfo" data-auth="logged-in" class="hidden text-gray-700 px-3 py-2 text-sm">
+                        <i class="fas fa-user-circle mr-1"></i><span id="userName"></span>
+                    </span>
+                    <a href="login.html" data-auth="logged-out" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Login</a>
+                    <a href="user-register.html" data-auth="logged-out" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Sign Up</a>
+                    <button onclick="ICE_Auth.logout()" data-auth="logged-in" class="hidden text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Logout</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-20">
+        <div class="text-center">
+            <!-- Title -->
+            <h1 class="text-4xl md:text-6xl font-bold text-gray-900 mb-4">
+                ICE – In Case of Emergency
+            </h1>
+            
+            <!-- Icons -->
+            <div class="flex justify-center items-center space-x-8 my-8">
+                <div class="bg-white rounded-full p-6 shadow-lg">
+                    <i class="fas fa-user-md text-4xl text-indigo-600"></i>
+                </div>
+                <div class="bg-white rounded-full p-6 shadow-lg">
+                    <i class="fas fa-qrcode text-4xl text-indigo-600"></i>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <p class="text-lg md:text-xl text-gray-700 max-w-3xl mx-auto mb-12 leading-relaxed">
+                Store your critical medical information securely and access it instantly via QR code. 
+                In an emergency, first responders can quickly scan your QR code to access vital health information, 
+                allergies, medications, and emergency contacts.
+            </p>
+
+            <!-- CTA Buttons -->
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center">
+                <a href="user-register.html" 
+                   class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-8 rounded-lg shadow-lg transform transition hover:scale-105 text-lg w-full sm:w-auto">
+                    <i class="fas fa-user-plus mr-2"></i>Sign Up Free
+                </a>
+                <a href="login.html" 
+                   class="bg-white hover:bg-gray-50 text-indigo-600 font-semibold py-4 px-8 rounded-lg shadow-lg border-2 border-indigo-600 transform transition hover:scale-105 text-lg w-full sm:w-auto">
+                    <i class="fas fa-sign-in-alt mr-2"></i>Login
+                </a>
+                <a href="register.html" 
+                   class="bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-8 rounded-lg shadow-lg transform transition hover:scale-105 text-lg w-full sm:w-auto">
+                    <i class="fas fa-plus-circle mr-2"></i>Quick Create (No Login)
+                </a>
+            </div>
+            <div class="mt-4 text-center">
+                <button onclick="scrollToHowItWorks()" 
+                        class="text-indigo-600 hover:text-indigo-800 font-medium text-lg">
+                    <i class="fas fa-info-circle mr-2"></i>How It Works
+                </button>
+            </div>
+        </div>
+
+        <!-- How It Works Section -->
+        <section id="how-it-works" class="mt-24 md:mt-32">
+            <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">How It Works</h2>
+            <div class="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+                <!-- Step 1 -->
+                <div class="bg-white rounded-lg shadow-lg p-6 text-center transform hover:scale-105 transition">
+                    <div class="bg-indigo-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl font-bold text-indigo-600">1</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Create Your Profile</h3>
+                    <p class="text-gray-600">Fill in your medical information, allergies, medications, and emergency contacts.</p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="bg-white rounded-lg shadow-lg p-6 text-center transform hover:scale-105 transition">
+                    <div class="bg-indigo-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl font-bold text-indigo-600">2</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Get Your QR Code</h3>
+                    <p class="text-gray-600">Receive a unique QR code linked to your emergency profile.</p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="bg-white rounded-lg shadow-lg p-6 text-center transform hover:scale-105 transition">
+                    <div class="bg-indigo-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                        <span class="text-2xl font-bold text-indigo-600">3</span>
+                    </div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-3">Keep It Accessible</h3>
+                    <p class="text-gray-600">Print or save your QR code on your phone, wallet, or medical ID bracelet.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features Section -->
+        <section class="mt-24 md:mt-32 bg-white rounded-lg shadow-lg p-8 md:p-12">
+            <h2 class="text-3xl md:text-4xl font-bold text-center text-gray-900 mb-12">Why Choose ICE?</h2>
+            <div class="grid md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+                <div class="flex items-start">
+                    <i class="fas fa-shield-alt text-indigo-600 text-2xl mr-4 mt-1"></i>
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-2">Secure & Private</h3>
+                        <p class="text-gray-600">Your medical information is stored securely and only accessible via QR code.</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <i class="fas fa-bolt text-indigo-600 text-2xl mr-4 mt-1"></i>
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-2">Instant Access</h3>
+                        <p class="text-gray-600">First responders can access critical information in seconds.</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <i class="fas fa-mobile-alt text-indigo-600 text-2xl mr-4 mt-1"></i>
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-2">Always Available</h3>
+                        <p class="text-gray-600">Works offline - no internet connection required to view your information.</p>
+                    </div>
+                </div>
+                <div class="flex items-start">
+                    <i class="fas fa-edit text-indigo-600 text-2xl mr-4 mt-1"></i>
+                    <div>
+                        <h3 class="font-semibold text-lg text-gray-800 mb-2">Easy to Update</h3>
+                        <p class="text-gray-600">Update your medical information anytime, anywhere.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-20 py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-gray-400">&copy; 2024 ICE – In Case of Emergency. All rights reserved.</p>
+            <p class="text-gray-500 text-sm mt-2">For medical emergencies, call 911 immediately.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        // Update user info in navigation
+        document.addEventListener('DOMContentLoaded', function() {
+            const user = ICE_Auth.getCurrentUser();
+            if (user) {
+                const userNameEl = document.getElementById('userName');
+                if (userNameEl) {
+                    userNameEl.textContent = user.fullName;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+

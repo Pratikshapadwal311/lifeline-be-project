@@ -1,0 +1,161 @@
+/* Custom CSS for ICE Application */
+
+/* Smooth scrolling */
+html {
+    scroll-behavior: smooth;
+}
+
+/* Focus styles for accessibility */
+*:focus {
+    outline: 2px solid #4f46e5;
+    outline-offset: 2px;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Print styles for QR code */
+@media print {
+    body {
+        background: white;
+    }
+    
+    nav, footer, button, .no-print {
+        display: none !important;
+    }
+    
+    #qrcode {
+        border: 2px solid #000 !important;
+        page-break-inside: avoid;
+    }
+    
+    main {
+        max-width: 100% !important;
+        padding: 20px !important;
+    }
+}
+
+/* Emergency page specific styles */
+.emergency-critical {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.8;
+    }
+}
+
+/* Form validation styles */
+input:invalid:not(:placeholder-shown) {
+    border-color: #ef4444;
+}
+
+input:valid:not(:placeholder-shown) {
+    border-color: #10b981;
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+/* Mobile-first responsive adjustments */
+@media (max-width: 640px) {
+    h1 {
+        font-size: 2rem;
+    }
+    
+    h2 {
+        font-size: 1.5rem;
+    }
+    
+    .text-3xl {
+        font-size: 1.5rem;
+    }
+    
+    .text-4xl {
+        font-size: 2rem;
+    }
+    
+    .text-5xl {
+        font-size: 2.5rem;
+    }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    .bg-gradient-to-br {
+        background: white;
+    }
+    
+    button, a {
+        border: 2px solid currentColor;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* QR Code container styling */
+#qrcode canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Error message display */
+.error-message {
+    display: block;
+    margin-top: 0.25rem;
+}
+
+.error-message.hidden {
+    display: none;
+}
+
+/* Success message animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.fade-in {
+    animation: fadeIn 0.3s ease-in;
+}
+

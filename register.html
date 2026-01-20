@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Create your ICE emergency medical profile">
+    <title>Create Emergency Profile - ICE</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <a href="index.html" class="flex items-center">
+                        <i class="fas fa-heartbeat text-red-600 text-2xl mr-2"></i>
+                        <span class="text-xl font-bold text-gray-800">ICE</span>
+                    </a>
+                </div>
+                <div class="hidden md:flex space-x-4">
+                    <a href="index.html" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                    <a href="register.html" class="text-indigo-600 px-3 py-2 rounded-md text-sm font-medium font-semibold">Create Profile</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <div class="bg-white rounded-lg shadow-xl p-6 md:p-10">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                    <i class="fas fa-user-plus text-indigo-600 mr-2"></i>Create Emergency Profile
+                </h1>
+                <p class="text-gray-600">Fill in your medical information to generate your emergency QR code</p>
+            </div>
+
+            <!-- Form -->
+            <form id="emergencyForm" class="space-y-6">
+                <!-- Personal Information Section -->
+                <div class="border-b border-gray-200 pb-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-user text-indigo-600 mr-2"></i>Personal Information
+                    </h2>
+                    
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <!-- Full Name -->
+                        <div>
+                            <label for="fullName" class="block text-sm font-medium text-gray-700 mb-2">
+                                Full Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" 
+                                   id="fullName" 
+                                   name="fullName" 
+                                   required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                   placeholder="John Doe">
+                            <span class="error-message text-red-500 text-sm hidden"></span>
+                        </div>
+
+                        <!-- Age -->
+                        <div>
+                            <label for="age" class="block text-sm font-medium text-gray-700 mb-2">
+                                Age <span class="text-red-500">*</span>
+                            </label>
+                            <input type="number" 
+                                   id="age" 
+                                   name="age" 
+                                   required
+                                   min="1" 
+                                   max="150"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                   placeholder="30">
+                            <span class="error-message text-red-500 text-sm hidden"></span>
+                        </div>
+                    </div>
+
+                    <!-- Gender -->
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Gender <span class="text-red-500">*</span>
+                        </label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="flex items-center">
+                                <input type="radio" name="gender" value="Male" required class="mr-2">
+                                <span>Male</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="gender" value="Female" required class="mr-2">
+                                <span>Female</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="gender" value="Other" required class="mr-2">
+                                <span>Other</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="radio" name="gender" value="Prefer not to say" required class="mr-2">
+                                <span>Prefer not to say</span>
+                            </label>
+                        </div>
+                        <span class="error-message text-red-500 text-sm hidden"></span>
+                    </div>
+
+                    <!-- Blood Group -->
+                    <div class="mt-4">
+                        <label for="bloodGroup" class="block text-sm font-medium text-gray-700 mb-2">
+                            Blood Group <span class="text-red-500">*</span>
+                        </label>
+                        <select id="bloodGroup" 
+                                name="bloodGroup" 
+                                required
+                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent">
+                            <option value="">Select Blood Group</option>
+                            <option value="A+">A+</option>
+                            <option value="A-">A-</option>
+                            <option value="B+">B+</option>
+                            <option value="B-">B-</option>
+                            <option value="AB+">AB+</option>
+                            <option value="AB-">AB-</option>
+                            <option value="O+">O+</option>
+                            <option value="O-">O-</option>
+                            <option value="Unknown">Unknown</option>
+                        </select>
+                        <span class="error-message text-red-500 text-sm hidden"></span>
+                    </div>
+                </div>
+
+                <!-- Medical Information Section -->
+                <div class="border-b border-gray-200 pb-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-heartbeat text-red-600 mr-2"></i>Medical Information
+                    </h2>
+
+                    <!-- Allergies -->
+                    <div class="mb-4">
+                        <label for="allergies" class="block text-sm font-medium text-gray-700 mb-2">
+                            Allergies
+                        </label>
+                        <textarea id="allergies" 
+                                  name="allergies" 
+                                  rows="3"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="e.g., Penicillin, Peanuts, Latex (leave blank if none)"></textarea>
+                    </div>
+
+                    <!-- Medical Conditions -->
+                    <div class="mb-4">
+                        <label for="medicalConditions" class="block text-sm font-medium text-gray-700 mb-2">
+                            Medical Conditions
+                        </label>
+                        <textarea id="medicalConditions" 
+                                  name="medicalConditions" 
+                                  rows="3"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="e.g., Diabetes Type 2, Hypertension (leave blank if none)"></textarea>
+                    </div>
+
+                    <!-- Current Medications -->
+                    <div>
+                        <label for="medications" class="block text-sm font-medium text-gray-700 mb-2">
+                            Current Medications
+                        </label>
+                        <textarea id="medications" 
+                                  name="medications" 
+                                  rows="3"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="e.g., Metformin 500mg twice daily, Lisinopril 10mg daily (leave blank if none)"></textarea>
+                    </div>
+                </div>
+
+                <!-- Emergency Contact Section -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-phone text-green-600 mr-2"></i>Emergency Contact
+                    </h2>
+
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <!-- Emergency Contact Name -->
+                        <div>
+                            <label for="emergencyContactName" class="block text-sm font-medium text-gray-700 mb-2">
+                                Contact Name <span class="text-red-500">*</span>
+                            </label>
+                            <input type="text" 
+                                   id="emergencyContactName" 
+                                   name="emergencyContactName" 
+                                   required
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                   placeholder="Jane Doe">
+                            <span class="error-message text-red-500 text-sm hidden"></span>
+                        </div>
+
+                        <!-- Emergency Contact Phone -->
+                        <div>
+                            <label for="emergencyContactPhone" class="block text-sm font-medium text-gray-700 mb-2">
+                                Contact Phone (Indian) <span class="text-red-500">*</span>
+                            </label>
+                            <input type="tel" 
+                                   id="emergencyContactPhone" 
+                                   name="emergencyContactPhone" 
+                                   required
+                                   pattern="(\+91[\s\-]?)?[6-9]\d{9}"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                   placeholder="+91 9876543210 or 9876543210">
+                            <span class="error-message text-red-500 text-sm hidden"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Information Section -->
+                <div class="border-b border-gray-200 pb-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-info-circle text-blue-600 mr-2"></i>Additional Information
+                    </h2>
+
+                    <!-- Organ Donor -->
+                    <div class="mb-4">
+                        <label class="flex items-center">
+                            <input type="checkbox" 
+                                   id="organDonor" 
+                                   name="organDonor"
+                                   class="mr-2 w-5 h-5">
+                            <span class="text-gray-700">I am a registered organ donor</span>
+                        </label>
+                    </div>
+
+                    <!-- Address -->
+                    <div class="mb-4">
+                        <label for="address" class="block text-sm font-medium text-gray-700 mb-2">
+                            Address
+                        </label>
+                        <input type="text" 
+                               id="address" 
+                               name="address"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="Street address (optional)">
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <!-- City -->
+                        <div>
+                            <label for="city" class="block text-sm font-medium text-gray-700 mb-2">
+                                City
+                            </label>
+                            <input type="text" 
+                                   id="city" 
+                                   name="city"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                   placeholder="City (optional)">
+                        </div>
+
+                        <!-- State -->
+                        <div>
+                            <label for="state" class="block text-sm font-medium text-gray-700 mb-2">
+                                State
+                            </label>
+                            <input type="text" 
+                                   id="state" 
+                                   name="state"
+                                   class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                   placeholder="State (optional)">
+                        </div>
+                    </div>
+
+                    <!-- Notes -->
+                    <div class="mt-4">
+                        <label for="notes" class="block text-sm font-medium text-gray-700 mb-2">
+                            Additional Notes
+                        </label>
+                        <textarea id="notes" 
+                                  name="notes" 
+                                  rows="3"
+                                  class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                  placeholder="Additional medical notes (optional)"></textarea>
+                    </div>
+                </div>
+
+                <!-- Notification Settings Section -->
+                <div>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">
+                        <i class="fas fa-bell text-orange-600 mr-2"></i>Notification Settings
+                    </h2>
+                    <p class="text-sm text-gray-600 mb-4">
+                        Get notified when your QR code is scanned or when someone requests access to sensitive information.
+                    </p>
+
+                    <!-- Owner Notification Contact -->
+                    <div>
+                        <label for="ownerNotificationContact" class="block text-sm font-medium text-gray-700 mb-2">
+                            Notification Contact (Email or Phone)
+                        </label>
+                        <input type="text" 
+                               id="ownerNotificationContact" 
+                               name="ownerNotificationContact"
+                               class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                               placeholder="your.email@example.com or +91 9876543210 (optional)">
+                        <p class="text-xs text-gray-500 mt-1">Optional: Receive notifications when QR is scanned</p>
+                    </div>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-6">
+                    <button type="submit" 
+                            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-8 rounded-lg shadow-lg transform transition hover:scale-105 text-lg">
+                        <i class="fas fa-qrcode mr-2"></i>Generate QR Code
+                    </button>
+                </div>
+
+                <!-- Loading Indicator -->
+                <div id="loadingIndicator" class="hidden text-center py-4">
+                    <i class="fas fa-spinner fa-spin text-indigo-600 text-2xl"></i>
+                    <p class="text-gray-600 mt-2">Creating your profile...</p>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-12 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-gray-400 text-sm">&copy; 2024 ICE – In Case of Emergency. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/config.js"></script>
+    <script src="js/register.js"></script>
+</body>
+</html>
+

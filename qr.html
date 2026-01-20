@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Your ICE emergency QR code">
+    <title>Your QR Code - ICE</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- QR Code Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <a href="index.html" class="flex items-center">
+                        <i class="fas fa-heartbeat text-red-600 text-2xl mr-2"></i>
+                        <span class="text-xl font-bold text-gray-800">ICE</span>
+                    </a>
+                </div>
+                <div class="hidden md:flex space-x-4">
+                    <a href="index.html" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Home</a>
+                    <a href="register.html" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Create Profile</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <div class="bg-white rounded-lg shadow-xl p-6 md:p-10">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                    <i class="fas fa-qrcode text-indigo-600 mr-2"></i>Your Emergency QR Code
+                </h1>
+                <p class="text-gray-600">Save, print, or share this QR code for emergency access</p>
+            </div>
+
+            <!-- QR Code Display -->
+            <div class="flex flex-col items-center justify-center mb-8">
+                <!-- QR Code Container -->
+                <div id="qrcode" class="bg-white p-6 rounded-lg shadow-lg mb-6 border-4 border-indigo-600">
+                    <!-- QR code will be generated here -->
+                </div>
+
+                <!-- User Name -->
+                <div class="text-center">
+                    <p class="text-sm text-gray-600 mb-1">Profile for</p>
+                    <h2 id="userName" class="text-2xl font-bold text-gray-900">
+                        <!-- Name will be inserted here -->
+                    </h2>
+                </div>
+            </div>
+
+            <!-- Instructions -->
+            <div class="bg-blue-50 border-l-4 border-blue-500 p-4 mb-8 rounded">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        <i class="fas fa-info-circle text-blue-500 text-xl"></i>
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm text-blue-700">
+                            <strong>How to use:</strong> Print this QR code and keep it in your wallet, 
+                            save it on your phone, or add it to a medical ID bracelet. In an emergency, 
+                            first responders can scan it to access your medical information instantly.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="grid sm:grid-cols-3 gap-4">
+                <!-- Download Button -->
+                <button onclick="downloadQRCode()" 
+                        class="bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center">
+                    <i class="fas fa-download mr-2"></i>Download QR Code
+                </button>
+
+                <!-- Print Button -->
+                <button onclick="printQRCode()" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center">
+                    <i class="fas fa-print mr-2"></i>Print QR Code
+                </button>
+
+                <!-- Edit Profile Button -->
+                <a href="register.html" 
+                   class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center text-center">
+                    <i class="fas fa-edit mr-2"></i>Edit Profile
+                </a>
+            </div>
+
+            <!-- Share Section -->
+            <div class="mt-8 pt-8 border-t border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">Share Your Profile</h3>
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="copyProfileLink()" 
+                            class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center">
+                        <i class="fas fa-copy mr-2"></i>Copy Profile Link
+                    </button>
+                    <div id="copySuccess" class="hidden text-green-600 text-sm text-center mt-2 sm:mt-0 sm:ml-4 flex items-center">
+                        <i class="fas fa-check-circle mr-2"></i>Link copied!
+                    </div>
+                </div>
+                <p id="profileLink" class="text-xs text-gray-500 text-center mt-4 break-all"></p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-12 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p class="text-gray-400 text-sm">&copy; 2024 ICE – In Case of Emergency. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="js/config.js"></script>
+    <script src="js/qr.js"></script>
+</body>
+</html>
+
