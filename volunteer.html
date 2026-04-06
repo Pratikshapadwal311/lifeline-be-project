@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>First-Aider Portal - ICE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .pulse-ring {
+            animation: pulse-ring 1.5s ease-in-out infinite;
+        }
+        @keyframes pulse-ring {
+            0%   { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34,197,94,0.5); }
+            70%  { transform: scale(1);    box-shadow: 0 0 0 12px rgba(34,197,94,0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        }
+        .alert-card { animation: slide-in 0.4s ease-out; }
+        @keyframes slide-in {
+            from { transform: translateY(-20px); opacity: 0; }
+            to   { transform: translateY(0);     opacity: 1; }
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-orange-50 to-red-50 min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md">
+        <div class="max-w-4xl mx-auto px-4 h-16 flex justify-between items-center">
+            <a href="index.html" class="flex items-center">
+                <i class="fas fa-heartbeat text-red-600 text-2xl mr-2"></i>
+                <span class="text-xl font-bold text-gray-800">ICE</span>
+            </a>
+            <div class="flex items-center gap-3">
+                <span id="onlineCount" class="text-sm text-gray-500 hidden">
+                    <i class="fas fa-circle text-green-500 text-xs mr-1"></i>
+                    <span id="countNum">0</span> volunteer(s) online
+                </span>
+                <a href="dashboard.html" class="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+                    <i class="fas fa-tachometer-alt mr-1"></i>Dashboard
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-2xl mx-auto px-4 py-8">
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-20 h-20 bg-orange-100 rounded-full mb-4">
+                <i class="fas fa-hand-holding-heart text-orange-500 text-4xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-900">First-Aider Portal</h1>
+            <p class="text-gray-600 mt-2">Register as a first-aider and receive real-time emergency alerts near you</p>
+        </div>
+
+        <!-- Registration Form (shown when offline) -->
+        <div id="registrationSection" class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-user-shield text-orange-500 mr-2"></i>Your Details
+            </h2>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+                    <input type="text" id="volunteerName"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400"
+                           placeholder="Enter your name">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Mobile Number <span class="text-red-500">*</span>
+                    </label>
+                    <div class="flex">
+                        <span class="inline-flex items-center px-3 border border-r-0 border-gray-300 rounded-l-lg bg-gray-50 text-gray-600 text-sm">
+                            🇮🇳 +91
+                        </span>
+                        <input type="tel" id="volunteerPhone" maxlength="10" inputmode="numeric"
+                               class="flex-1 px-4 py-3 border border-gray-300 rounded-r-lg focus:ring-2 focus:ring-orange-400 focus:border-orange-400"
+                               placeholder="9876543210">
+                    </div>
+                    <p class="text-xs text-gray-400 mt-1">
+                        <i class="fas fa-sms mr-1"></i>You will receive an SMS alert when there is a nearby emergency
+                    </p>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Skills / Training</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-orange-50">
+                            <input type="checkbox" name="skill" value="CPR" class="mr-2 w-4 h-4 accent-orange-500">
+                            <span class="text-sm">💓 CPR</span>
+                        </label>
+                        <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-orange-50">
+                            <input type="checkbox" name="skill" value="AED" class="mr-2 w-4 h-4 accent-orange-500">
+                            <span class="text-sm">⚡ AED</span>
+                        </label>
+                        <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-orange-50">
+                            <input type="checkbox" name="skill" value="First Aid" class="mr-2 w-4 h-4 accent-orange-500">
+                            <span class="text-sm">🩹 First Aid</span>
+                        </label>
+                        <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-orange-50">
+                            <input type="checkbox" name="skill" value="Nurse" class="mr-2 w-4 h-4 accent-orange-500">
+                            <span class="text-sm">👩‍⚕️ Nurse</span>
+                        </label>
+                        <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-orange-50">
+                            <input type="checkbox" name="skill" value="Doctor" class="mr-2 w-4 h-4 accent-orange-500">
+                            <span class="text-sm">👨‍⚕️ Doctor</span>
+                        </label>
+                        <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-orange-50">
+                            <input type="checkbox" name="skill" value="Paramedic" class="mr-2 w-4 h-4 accent-orange-500">
+                            <span class="text-sm">🚑 Paramedic</span>
+                        </label>
+                        <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-orange-50 col-span-2">
+                            <input type="checkbox" name="skill" value="General Help" class="mr-2 w-4 h-4 accent-orange-500" checked>
+                            <span class="text-sm">🙋 General Help (no formal training)</span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Go Active Button -->
+        <div id="goActiveSection" class="mb-6">
+            <button id="goActiveBtn" onclick="goActive()"
+                    class="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-4 px-6 rounded-xl shadow-lg text-lg transition transform hover:scale-105">
+                <i class="fas fa-map-marker-alt mr-2"></i>Go Active – Share My Location
+            </button>
+            <p class="text-center text-xs text-gray-500 mt-2">
+                <i class="fas fa-lock mr-1"></i>Your location is only used to alert you of nearby emergencies
+            </p>
+        </div>
+
+        <!-- Active Status Card (hidden until active) -->
+        <div id="activeStatus" class="hidden bg-green-600 rounded-xl shadow-lg p-6 mb-6 text-white">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-4 h-4 bg-white rounded-full pulse-ring"></div>
+                    <h2 class="text-xl font-bold">You Are Active</h2>
+                </div>
+                <button onclick="goOffline()"
+                        class="bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg text-sm">
+                    <i class="fas fa-power-off mr-1"></i>Go Offline
+                </button>
+            </div>
+            <p class="text-green-100 text-sm mb-3">Monitoring for emergencies within 500m of your location</p>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="bg-green-700 rounded-lg p-3 text-center">
+                    <p class="text-green-200 text-xs">Volunteer Name</p>
+                    <p id="activeName" class="font-semibold text-sm mt-1"></p>
+                </div>
+                <div class="bg-green-700 rounded-lg p-3 text-center">
+                    <p class="text-green-200 text-xs">SMS Alerts To</p>
+                    <p id="activePhone" class="font-semibold text-sm mt-1"></p>
+                </div>
+                <div class="bg-green-700 rounded-lg p-3 text-center">
+                    <p class="text-green-200 text-xs">Skills</p>
+                    <p id="activeSkills" class="font-semibold text-sm mt-1"></p>
+                </div>
+                <div class="bg-green-700 rounded-lg p-3 text-center">
+                    <p class="text-green-200 text-xs">Alerts Received</p>
+                    <p id="alertCount" class="font-bold text-2xl mt-1">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- How It Works -->
+        <div class="bg-white rounded-xl shadow p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-info-circle text-blue-500 mr-2"></i>How It Works
+            </h2>
+            <div class="space-y-3">
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-orange-600 font-bold text-sm">1</span>
+                    </div>
+                    <p class="text-gray-600 text-sm pt-1">Enter your name and skills, then click <strong>Go Active</strong></p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-orange-600 font-bold text-sm">2</span>
+                    </div>
+                    <p class="text-gray-600 text-sm pt-1">Allow location access — your GPS is used only to find nearby emergencies</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-orange-600 font-bold text-sm">3</span>
+                    </div>
+                    <p class="text-gray-600 text-sm pt-1">When someone scans a QR code nearby and alerts first-aiders, you get an instant notification on this page</p>
+                </div>
+                <div class="flex items-start gap-3">
+                    <div class="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span class="text-orange-600 font-bold text-sm">4</span>
+                    </div>
+                    <p class="text-gray-600 text-sm pt-1">Go help the person and call <strong>112</strong> for professional medical help</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Incoming Alerts -->
+        <div>
+            <h2 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-bell text-red-500 mr-2"></i>Emergency Alerts
+            </h2>
+            <div id="alertsContainer">
+                <div id="noAlerts" class="bg-white rounded-xl shadow p-8 text-center text-gray-400">
+                    <i class="fas fa-bell-slash text-5xl mb-3 block"></i>
+                    <p class="font-medium">No alerts yet</p>
+                    <p class="text-sm mt-1">Go active to start receiving emergency notifications</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="bg-gray-800 text-white mt-12 py-6 text-center">
+        <p class="text-gray-400 text-sm">&copy; 2024 ICE – In Case of Emergency</p>
+        <p class="text-red-400 text-sm font-semibold mt-1">
+            <i class="fas fa-phone mr-1"></i>For emergencies, always call 112 first
+        </p>
+    </footer>
+
+    <!-- Socket.io client (served by our server) -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="js/config.js"></script>
+    <script>
+        let socket = null;
+        let isActive = false;
+        let locationWatcher = null;
+        let currentLat = null;
+        let currentLng = null;
+        let totalAlerts = 0;
+
+        // Update live volunteer count every 10 seconds
+        async function refreshCount() {
+            try {
+                const res = await fetch(API_BASE_URL + '/api/volunteers/count');
+                const data = await res.json();
+                if (data.success) {
+                    document.getElementById('countNum').textContent = data.data.count;
+                    document.getElementById('onlineCount').classList.remove('hidden');
+                }
+            } catch (e) {}
+        }
+        refreshCount();
+        setInterval(refreshCount, 10000);
+
+        function goActive() {
+            const name   = document.getElementById('volunteerName').value.trim() || 'Anonymous';
+            const phone  = document.getElementById('volunteerPhone').value.trim();
+            const skills = Array.from(document.querySelectorAll('input[name="skill"]:checked')).map(c => c.value);
+
+            if (!phone || !/^[6-9]\d{9}$/.test(phone)) {
+                alert('Please enter a valid 10-digit Indian mobile number to receive SMS alerts.');
+                document.getElementById('volunteerPhone').focus();
+                return;
+            }
+
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported on this device.');
+                return;
+            }
+
+            const btn = document.getElementById('goActiveBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Getting your location...';
+
+            // Geolocation requires HTTPS on mobile browsers
+            if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>Go Active – Share My Location';
+                alert('Location access requires HTTPS.\n\nPlease open this page using your Cloudflare (https://) link, not a local IP address.\n\nExample: https://your-tunnel.trycloudflare.com/volunteer.html');
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    currentLat = pos.coords.latitude;
+                    currentLng = pos.coords.longitude;
+
+                    // Connect socket.io
+                    socket = io(window.location.origin);
+
+                    socket.on('connect', () => {
+                        socket.emit('register-volunteer', {
+                            name,
+                            phone,
+                            skills,
+                            lat: currentLat,
+                            lng: currentLng
+                        });
+                    });
+
+                    socket.on('registered', (data) => {
+                        isActive = true;
+                        showActiveUI(name, phone, skills);
+                        refreshCount();
+                    });
+
+                    socket.on('volunteer-count', (count) => {
+                        document.getElementById('countNum').textContent = count;
+                    });
+
+                    socket.on('emergency-alert', (alert) => {
+                        totalAlerts++;
+                        document.getElementById('alertCount').textContent = totalAlerts;
+                        showAlert(alert);
+                        // Browser notification if permission granted
+                        sendBrowserNotification(alert);
+                    });
+
+                    socket.on('disconnect', () => {
+                        if (isActive) {
+                            showStatus('Connection lost. Please refresh to reconnect.', 'red');
+                        }
+                    });
+
+                    // Watch location for updates
+                    locationWatcher = navigator.geolocation.watchPosition((p) => {
+                        currentLat = p.coords.latitude;
+                        currentLng = p.coords.longitude;
+                        if (socket && socket.connected) {
+                            socket.emit('update-location', { lat: currentLat, lng: currentLng });
+                        }
+                        document.getElementById('activeLocation').textContent =
+                            currentLat.toFixed(4) + ', ' + currentLng.toFixed(4);
+                    });
+                },
+                (err) => {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>Go Active – Share My Location';
+                    let msg = 'Could not get your location.\n\n';
+                    if (err.code === 1) msg += 'Permission denied — go to browser Settings → Site Settings → Location → Allow.';
+                    else if (err.code === 2) msg += 'GPS unavailable — make sure phone location is ON.';
+                    else if (err.code === 3) msg += 'Timed out — move to an open area and try again.';
+                    alert(msg);
+                },
+                { timeout: 15000, enableHighAccuracy: false, maximumAge: 60000 }
+            );
+
+            // Request browser notification permission
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+        }
+
+        function goOffline() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+            }
+            if (locationWatcher !== null) {
+                navigator.geolocation.clearWatch(locationWatcher);
+                locationWatcher = null;
+            }
+            isActive = false;
+
+            document.getElementById('activeStatus').classList.add('hidden');
+            document.getElementById('registrationSection').classList.remove('hidden');
+            document.getElementById('goActiveSection').classList.remove('hidden');
+            const btn = document.getElementById('goActiveBtn');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>Go Active – Share My Location';
+            refreshCount();
+        }
+
+        function showActiveUI(name, phone, skills) {
+            document.getElementById('registrationSection').classList.add('hidden');
+            document.getElementById('goActiveSection').classList.add('hidden');
+            document.getElementById('activeStatus').classList.remove('hidden');
+
+            document.getElementById('activeName').textContent = name;
+            document.getElementById('activePhone').textContent = '+91 ' + phone;
+            document.getElementById('activeSkills').textContent = skills.length > 0 ? skills.join(', ') : 'General Help';
+        }
+
+        function showAlert(alert) {
+            document.getElementById('noAlerts').classList.add('hidden');
+
+            const time = new Date(alert.timestamp).toLocaleTimeString();
+            const mapsUrl = 'https://maps.google.com/?q=' + alert.emergencyLat + ',' + alert.emergencyLng;
+
+            const card = document.createElement('div');
+            card.className = 'alert-card bg-red-600 text-white rounded-xl shadow-xl p-5 mb-4';
+            card.innerHTML = `
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-red-700 rounded-full flex items-center justify-center flex-shrink-0">
+                            <i class="fas fa-exclamation-triangle text-2xl"></i>
+                        </div>
+                        <div>
+                            <p class="font-bold text-xl">EMERGENCY NEARBY!</p>
+                            <p class="text-red-200 text-sm">${time}</p>
+                        </div>
+                    </div>
+                    <span class="bg-red-700 px-3 py-1 rounded-full text-sm font-bold">${alert.distance}m away</span>
+                </div>
+
+                <div class="bg-red-700 rounded-lg p-4 mb-4 space-y-2">
+                    <div class="flex justify-between">
+                        <span class="text-red-200 text-sm">Patient Name</span>
+                        <span class="font-semibold">${escapeHtml(alert.patientName)}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-red-200 text-sm">Blood Group</span>
+                        <span class="font-bold text-yellow-300">${escapeHtml(alert.bloodGroup)}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-red-200 text-sm">Distance</span>
+                        <span class="font-semibold">${alert.distance} metres from you</span>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <a href="${mapsUrl}" target="_blank"
+                       class="flex-1 bg-white text-red-600 font-bold py-3 rounded-lg text-center text-sm hover:bg-red-50">
+                        <i class="fas fa-map-marker-alt mr-1"></i>Open in Maps
+                    </a>
+                    <a href="tel:112"
+                       class="flex-1 bg-yellow-400 text-red-800 font-bold py-3 rounded-lg text-center text-sm hover:bg-yellow-300">
+                        <i class="fas fa-phone mr-1"></i>Call 112
+                    </a>
+                </div>
+            `;
+
+            document.getElementById('alertsContainer').prepend(card);
+
+            // Play a simple alert sound using Web Audio API
+            try {
+                const ctx = new AudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, ctx.currentTime);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.8);
+            } catch (e) {}
+        }
+
+        function sendBrowserNotification(alert) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('ICE Emergency Alert!', {
+                    body: `Emergency ${alert.distance}m from you! Patient: ${alert.patientName} | Blood: ${alert.bloodGroup}`,
+                    icon: '/favicon.ico'
+                });
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return String(text).replace(/[&<>"']/g, m => map[m]);
+        }
+
+        function showStatus(msg, color) {
+            const el = document.createElement('div');
+            el.className = `bg-${color}-100 text-${color}-700 p-3 rounded-lg text-sm mb-4`;
+            el.textContent = msg;
+            document.querySelector('main').prepend(el);
+            setTimeout(() => el.remove(), 5000);
+        }
+    </script>
+</body>
+</html>

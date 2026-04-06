@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Dashboard - ICE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Navigation -->
+    <nav class="bg-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <a href="index.html" class="flex items-center">
+                    <i class="fas fa-heartbeat text-red-600 text-2xl mr-2"></i>
+                    <span class="text-xl font-bold text-gray-800">ICE</span>
+                </a>
+                <div class="flex items-center gap-4">
+                    <span id="userGreeting" class="text-gray-600 text-sm"></span>
+                    <button onclick="logout()" class="text-red-600 hover:text-red-700 font-medium text-sm">
+                        <i class="fas fa-sign-out-alt mr-1"></i>Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto px-4 py-8">
+
+        <!-- Loading -->
+        <div id="loadingState" class="text-center py-16">
+            <i class="fas fa-spinner fa-spin text-indigo-600 text-4xl mb-4"></i>
+            <p class="text-gray-600">Loading your profile...</p>
+        </div>
+
+        <!-- Not logged in -->
+        <div id="notLoggedIn" class="hidden text-center py-16">
+            <i class="fas fa-lock text-gray-400 text-5xl mb-4"></i>
+            <h2 class="text-2xl font-bold text-gray-700 mb-2">Please Login First</h2>
+            <p class="text-gray-500 mb-6">You need to login to access your dashboard</p>
+            <a href="login.html" class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700">
+                <i class="fas fa-sign-in-alt mr-2"></i>Go to Login
+            </a>
+        </div>
+
+        <!-- No profile yet -->
+        <div id="noProfile" class="hidden text-center py-16">
+            <i class="fas fa-user-plus text-gray-400 text-5xl mb-4"></i>
+            <h2 class="text-2xl font-bold text-gray-700 mb-2">No Profile Found</h2>
+            <p class="text-gray-500 mb-6">Create your emergency profile to get started</p>
+            <a href="register.html" class="bg-indigo-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-indigo-700">
+                <i class="fas fa-plus mr-2"></i>Create Profile
+            </a>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboardContent" class="hidden">
+
+            <!-- Header -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-800"><i class="fas fa-tachometer-alt text-indigo-600 mr-2"></i>My Dashboard</h1>
+                    <p id="profileName" class="text-gray-500 mt-1"></p>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="downloadQR()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm">
+                        <i class="fas fa-download mr-2"></i>Download QR
+                    </button>
+                    <button onclick="showEditForm()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg font-medium text-sm">
+                        <i class="fas fa-edit mr-2"></i>Edit Profile
+                    </button>
+                </div>
+            </div>
+
+            <!-- QR Code Card -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6 text-center">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4"><i class="fas fa-qrcode text-indigo-600 mr-2"></i>Your Emergency QR Code</h2>
+                <div id="qrCanvas" class="mx-auto inline-block p-3 border-2 border-indigo-200 rounded-lg mb-3 bg-white"></div>
+                <p class="text-sm text-gray-500 mt-3">Anyone who scans this QR code can access your emergency info</p>
+                <p id="emergencyUrl" class="text-xs text-indigo-600 mt-2 break-all"></p>
+            </div>
+
+            <!-- Profile Summary -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4"><i class="fas fa-user text-indigo-600 mr-2"></i>Profile Summary</h2>
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-4" id="profileSummary"></div>
+            </div>
+
+            <!-- Scan History -->
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <h2 class="text-lg font-semibold text-gray-800 mb-4"><i class="fas fa-history text-indigo-600 mr-2"></i>QR Scan History</h2>
+                <div id="scanHistory"></div>
+            </div>
+
+            <!-- First-Aider Portal -->
+            <div class="bg-gradient-to-r from-orange-500 to-red-500 rounded-lg shadow p-6 mb-6 text-white">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-semibold mb-1">
+                            <i class="fas fa-hand-holding-heart mr-2"></i>First-Aider Portal
+                        </h2>
+                        <p class="text-orange-100 text-sm">
+                            Register as a trained volunteer and receive real-time alerts when someone nearby needs help.
+                            Be a lifesaver in your community!
+                        </p>
+                    </div>
+                    <a href="volunteer.html"
+                       class="flex-shrink-0 bg-white text-orange-600 font-semibold px-5 py-3 rounded-lg hover:bg-orange-50 text-sm text-center">
+                        <i class="fas fa-arrow-right mr-2"></i>Open Portal
+                    </a>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Edit Profile Form (hidden by default) -->
+        <div id="editFormSection" class="hidden">
+            <div class="bg-white rounded-lg shadow p-6 mb-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h2 class="text-xl font-bold text-gray-800"><i class="fas fa-edit text-indigo-600 mr-2"></i>Edit Profile</h2>
+                    <button onclick="hideEditForm()" class="text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+
+                <form id="editForm" class="space-y-6">
+
+                    <!-- Personal Info -->
+                    <div class="border-b pb-6">
+                        <h3 class="font-semibold text-gray-700 mb-4"><i class="fas fa-user text-indigo-500 mr-2"></i>Personal Information</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                                <input type="text" id="edit_fullName" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Age *</label>
+                                <input type="number" id="edit_age" required min="1" max="150" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Gender *</label>
+                                <select id="edit_gender" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                    <option value="Prefer not to say">Prefer not to say</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Blood Group *</label>
+                                <select id="edit_bloodGroup" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                    <option value="A+">A+</option>
+                                    <option value="A-">A-</option>
+                                    <option value="B+">B+</option>
+                                    <option value="B-">B-</option>
+                                    <option value="AB+">AB+</option>
+                                    <option value="AB-">AB-</option>
+                                    <option value="O+">O+</option>
+                                    <option value="O-">O-</option>
+                                    <option value="Unknown">Unknown</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Chronic Diseases -->
+                    <div class="border-b pb-6">
+                        <h3 class="font-semibold text-gray-700 mb-4"><i class="fas fa-heartbeat text-red-500 mr-2"></i>Chronic Diseases</h3>
+                        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                            <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-red-50">
+                                <input type="checkbox" name="edit_chronicDiseases" value="Diabetes" class="mr-2 w-4 h-4">
+                                <span class="text-sm">🩸 Diabetes</span>
+                            </label>
+                            <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-red-50">
+                                <input type="checkbox" name="edit_chronicDiseases" value="Heart Disease" class="mr-2 w-4 h-4">
+                                <span class="text-sm">❤️ Heart Disease</span>
+                            </label>
+                            <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-red-50">
+                                <input type="checkbox" name="edit_chronicDiseases" value="Hypertension" class="mr-2 w-4 h-4">
+                                <span class="text-sm">🔴 Hypertension</span>
+                            </label>
+                            <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-red-50">
+                                <input type="checkbox" name="edit_chronicDiseases" value="Epilepsy" class="mr-2 w-4 h-4">
+                                <span class="text-sm">⚡ Epilepsy</span>
+                            </label>
+                            <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-red-50">
+                                <input type="checkbox" name="edit_chronicDiseases" value="Asthma" class="mr-2 w-4 h-4">
+                                <span class="text-sm">🫁 Asthma</span>
+                            </label>
+                            <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-red-50">
+                                <input type="checkbox" name="edit_chronicDiseases" value="Kidney Disease" class="mr-2 w-4 h-4">
+                                <span class="text-sm">🫘 Kidney Disease</span>
+                            </label>
+                            <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-red-50">
+                                <input type="checkbox" name="edit_chronicDiseases" value="Thyroid" class="mr-2 w-4 h-4">
+                                <span class="text-sm">🦋 Thyroid</span>
+                            </label>
+                            <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-red-50">
+                                <input type="checkbox" name="edit_chronicDiseases" value="Blood Thinner" class="mr-2 w-4 h-4">
+                                <span class="text-sm">💉 Blood Thinners</span>
+                            </label>
+                            <label class="flex items-center bg-gray-50 border rounded-lg p-3 cursor-pointer hover:bg-red-50">
+                                <input type="checkbox" name="edit_chronicDiseases" value="Cancer" class="mr-2 w-4 h-4">
+                                <span class="text-sm">🎗️ Cancer</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Medical Info -->
+                    <div class="border-b pb-6">
+                        <h3 class="font-semibold text-gray-700 mb-4"><i class="fas fa-notes-medical text-red-500 mr-2"></i>Medical Information</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Allergies</label>
+                                <textarea id="edit_allergies" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="e.g., Penicillin, Peanuts"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Other Medical Conditions</label>
+                                <textarea id="edit_medicalConditions" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Current Medications</label>
+                                <textarea id="edit_medications" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Known Triggers</label>
+                                <textarea id="edit_knownTriggers" rows="2" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500" placeholder="What triggers your condition"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Doctor & Hospital -->
+                    <div class="border-b pb-6">
+                        <h3 class="font-semibold text-gray-700 mb-4"><i class="fas fa-user-md text-blue-500 mr-2"></i>Doctor & Hospital</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Doctor's Name</label>
+                                <input type="text" id="edit_doctorName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Doctor's Phone</label>
+                                <input type="tel" id="edit_doctorPhone" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Preferred Hospital</label>
+                                <input type="text" id="edit_preferredHospital" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Private Info -->
+                    <div class="border-b pb-6">
+                        <h3 class="font-semibold text-gray-700 mb-4"><i class="fas fa-lock text-yellow-500 mr-2"></i>Private Information (OTP Protected)</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Insurance Provider</label>
+                                <input type="text" id="edit_insuranceProvider" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Policy Number</label>
+                                <input type="text" id="edit_insurancePolicyNumber" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Government ID (Aadhar/PAN)</label>
+                                <input type="text" id="edit_governmentIdNumber" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Dietary Restrictions</label>
+                                <input type="text" id="edit_dietaryRestrictions" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <label class="flex items-center">
+                                <input type="checkbox" id="edit_organDonor" class="mr-2 w-5 h-5">
+                                <span class="text-gray-700">I am a registered organ donor</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Emergency Contact -->
+                    <div class="border-b pb-6">
+                        <h3 class="font-semibold text-gray-700 mb-4"><i class="fas fa-phone text-green-500 mr-2"></i>Emergency Contact</h3>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Name *</label>
+                                <input type="text" id="edit_emergencyContactName" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Contact Phone *</label>
+                                <input type="tel" id="edit_emergencyContactNumber" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Address & Notes -->
+                    <div>
+                        <h3 class="font-semibold text-gray-700 mb-4"><i class="fas fa-map-marker-alt text-gray-500 mr-2"></i>Address & Notes</h3>
+                        <div class="space-y-4">
+                            <input type="text" id="edit_address" placeholder="Address" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            <div class="grid md:grid-cols-2 gap-4">
+                                <input type="text" id="edit_city" placeholder="City" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                                <input type="text" id="edit_state" placeholder="State" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <textarea id="edit_notes" rows="2" placeholder="Additional notes" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Success/Error Message -->
+                    <div id="updateMessage" class="hidden p-4 rounded-lg"></div>
+
+                    <!-- Submit -->
+                    <div class="flex gap-3">
+                        <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-lg">
+                            <i class="fas fa-save mr-2"></i>Save Changes
+                        </button>
+                        <button type="button" onclick="hideEditForm()" class="px-6 bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-3 rounded-lg">
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- QR Code generation library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="js/config.js"></script>
+    <script>
+        let currentProfile = null;
+        let currentProfileId = null;
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            const token = localStorage.getItem('ice_token');
+            const user = JSON.parse(localStorage.getItem('ice_user') || 'null');
+
+            if (!token || !user) {
+                show('notLoggedIn');
+                return;
+            }
+
+            document.getElementById('userGreeting').textContent = 'Hi, ' + (user.fullName || user.email);
+
+            // Get profile ID from localStorage
+            currentProfileId = localStorage.getItem('ice_current_profile');
+
+            if (!currentProfileId) {
+                show('noProfile');
+                return;
+            }
+
+            await loadProfile(token);
+
+            // Edit form submit
+            document.getElementById('editForm').addEventListener('submit', async function(e) {
+                e.preventDefault();
+                await saveProfile(token);
+            });
+        });
+
+        async function loadProfile(token) {
+            try {
+                const response = await fetch(API_BASE_URL + '/api/profile/' + currentProfileId, {
+                    headers: { 'Authorization': 'Bearer ' + token }
+                });
+                const data = await response.json();
+
+                if (!data.success) {
+                    show('noProfile');
+                    return;
+                }
+
+                currentProfile = data.data;
+                renderDashboard(data.data);
+                show('dashboardContent');
+
+            } catch (err) {
+                show('noProfile');
+            }
+        }
+
+        function renderDashboard(profile) {
+            document.getElementById('profileName').textContent = profile.fullName + ' — Last updated: ' + new Date(profile.updatedAt || profile.createdAt).toLocaleDateString();
+
+            // QR Code — always generated fresh using current API_BASE_URL
+            const emergencyURL = API_BASE_URL + '/emergency/' + currentProfileId;
+            const qrContainer = document.getElementById('qrCanvas');
+            qrContainer.innerHTML = ''; // clear old QR
+            new QRCode(qrContainer, {
+                text: emergencyURL,
+                width: 200,
+                height: 200,
+                colorDark: '#000000',
+                colorLight: '#ffffff',
+                correctLevel: QRCode.CorrectLevel.H
+            });
+            document.getElementById('emergencyUrl').textContent = emergencyURL;
+
+            // Profile Summary
+            const summary = [
+                { label: 'Blood Group', value: profile.bloodGroup || 'Unknown', icon: '🩸' },
+                { label: 'Age', value: profile.age || 'N/A', icon: '🎂' },
+                { label: 'Gender', value: profile.gender || 'N/A', icon: '👤' },
+                { label: 'Emergency Contact', value: profile.emergencyContactName || 'N/A', icon: '📞' },
+                { label: 'Chronic Diseases', value: (profile.chronicDiseases && profile.chronicDiseases.length > 0) ? profile.chronicDiseases.join(', ') : 'None', icon: '🏥' },
+                { label: 'Allergies', value: profile.allergies || 'None', icon: '⚠️' },
+            ];
+
+            document.getElementById('profileSummary').innerHTML = summary.map(item =>
+                `<div class="bg-gray-50 rounded-lg p-3">
+                    <p class="text-xs text-gray-500 mb-1">${item.icon} ${item.label}</p>
+                    <p class="font-semibold text-gray-800 text-sm">${item.value}</p>
+                </div>`
+            ).join('');
+
+            // Scan History
+            const scanHistory = document.getElementById('scanHistory');
+            if (profile.lastQrScan && profile.lastQrScan.scannedAt) {
+                scanHistory.innerHTML = `
+                    <div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg p-4">
+                        <p class="font-medium text-gray-800"><i class="fas fa-qrcode text-blue-600 mr-2"></i>Last Scanned</p>
+                        <p class="text-gray-600 text-sm mt-1">📅 ${new Date(profile.lastQrScan.scannedAt).toLocaleString()}</p>
+                        <p class="text-gray-600 text-sm">📱 ${profile.lastQrScan.scannedByDevice || 'Unknown device'}</p>
+                    </div>`;
+            } else {
+                scanHistory.innerHTML = `<p class="text-gray-400 text-center py-4"><i class="fas fa-qrcode mr-2"></i>No scans yet</p>`;
+            }
+        }
+
+        function showEditForm() {
+            if (!currentProfile) return;
+            const p = currentProfile;
+
+            // Fill form with current data
+            document.getElementById('edit_fullName').value = p.fullName || '';
+            document.getElementById('edit_age').value = p.age || '';
+            document.getElementById('edit_gender').value = p.gender || 'Male';
+            document.getElementById('edit_bloodGroup').value = p.bloodGroup || 'Unknown';
+            document.getElementById('edit_allergies').value = p.allergies === 'None' ? '' : (p.allergies || '');
+            document.getElementById('edit_medicalConditions').value = p.medicalConditions === 'None' ? '' : (p.medicalConditions || '');
+            document.getElementById('edit_medications').value = p.medications === 'None' ? '' : (p.medications || '');
+            document.getElementById('edit_knownTriggers').value = p.knownTriggers || '';
+            document.getElementById('edit_doctorName').value = p.doctorName || '';
+            document.getElementById('edit_doctorPhone').value = p.doctorPhone || '';
+            document.getElementById('edit_preferredHospital').value = p.preferredHospital || '';
+            document.getElementById('edit_insuranceProvider').value = p.insuranceProvider || '';
+            document.getElementById('edit_insurancePolicyNumber').value = p.insurancePolicyNumber || '';
+            document.getElementById('edit_governmentIdNumber').value = p.governmentIdNumber || '';
+            document.getElementById('edit_dietaryRestrictions').value = p.dietaryRestrictions || '';
+            document.getElementById('edit_organDonor').checked = p.organDonor || false;
+            document.getElementById('edit_emergencyContactName').value = p.emergencyContactName || '';
+            document.getElementById('edit_emergencyContactNumber').value = p.emergencyContactNumber || '';
+            document.getElementById('edit_address').value = p.address || '';
+            document.getElementById('edit_city').value = p.city || '';
+            document.getElementById('edit_state').value = p.state || '';
+            document.getElementById('edit_notes').value = p.notes || '';
+
+            // Chronic diseases checkboxes
+            document.querySelectorAll('input[name="edit_chronicDiseases"]').forEach(cb => {
+                cb.checked = (p.chronicDiseases || []).includes(cb.value);
+            });
+
+            document.getElementById('dashboardContent').classList.add('hidden');
+            document.getElementById('editFormSection').classList.remove('hidden');
+            window.scrollTo(0, 0);
+        }
+
+        function hideEditForm() {
+            document.getElementById('editFormSection').classList.add('hidden');
+            document.getElementById('dashboardContent').classList.remove('hidden');
+        }
+
+        async function saveProfile(token) {
+            const chronicDiseases = Array.from(
+                document.querySelectorAll('input[name="edit_chronicDiseases"]:checked')
+            ).map(cb => cb.value);
+
+            const updateData = {
+                fullName: document.getElementById('edit_fullName').value,
+                age: parseInt(document.getElementById('edit_age').value),
+                gender: document.getElementById('edit_gender').value,
+                bloodGroup: document.getElementById('edit_bloodGroup').value,
+                chronicDiseases,
+                allergies: document.getElementById('edit_allergies').value || 'None',
+                medicalConditions: document.getElementById('edit_medicalConditions').value || 'None',
+                medications: document.getElementById('edit_medications').value || 'None',
+                knownTriggers: document.getElementById('edit_knownTriggers').value,
+                doctorName: document.getElementById('edit_doctorName').value,
+                doctorPhone: document.getElementById('edit_doctorPhone').value,
+                preferredHospital: document.getElementById('edit_preferredHospital').value,
+                insuranceProvider: document.getElementById('edit_insuranceProvider').value,
+                insurancePolicyNumber: document.getElementById('edit_insurancePolicyNumber').value,
+                governmentIdNumber: document.getElementById('edit_governmentIdNumber').value,
+                dietaryRestrictions: document.getElementById('edit_dietaryRestrictions').value,
+                organDonor: document.getElementById('edit_organDonor').checked,
+                emergencyContactName: document.getElementById('edit_emergencyContactName').value,
+                emergencyContactNumber: document.getElementById('edit_emergencyContactNumber').value,
+                address: document.getElementById('edit_address').value,
+                city: document.getElementById('edit_city').value,
+                state: document.getElementById('edit_state').value,
+                notes: document.getElementById('edit_notes').value,
+            };
+
+            const msgDiv = document.getElementById('updateMessage');
+            msgDiv.className = 'p-4 rounded-lg bg-blue-50 text-blue-700';
+            msgDiv.textContent = 'Saving...';
+            msgDiv.classList.remove('hidden');
+
+            try {
+                const response = await fetch(API_BASE_URL + '/api/profile/' + currentProfileId, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify(updateData)
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    if (data.data.qrCode) {
+                        localStorage.setItem('ice_qr_' + currentProfileId, data.data.qrCode);
+                    }
+                    msgDiv.className = 'p-4 rounded-lg bg-green-50 text-green-700';
+                    msgDiv.textContent = '✅ Profile updated successfully!';
+
+                    // Reload profile and go back to dashboard
+                    setTimeout(async () => {
+                        await loadProfile(token);
+                        hideEditForm();
+                    }, 1500);
+                } else {
+                    msgDiv.className = 'p-4 rounded-lg bg-red-50 text-red-700';
+                    msgDiv.textContent = '❌ ' + (data.error || 'Failed to update profile');
+                }
+            } catch (err) {
+                msgDiv.className = 'p-4 rounded-lg bg-red-50 text-red-700';
+                msgDiv.textContent = '❌ Error updating profile. Please try again.';
+            }
+        }
+
+        function downloadQR() {
+            const canvas = document.querySelector('#qrCanvas canvas');
+            if (!canvas) { alert('QR code not ready yet.'); return; }
+            const a = document.createElement('a');
+            a.href = canvas.toDataURL('image/png');
+            a.download = 'ICE-QR-Code.png';
+            a.click();
+        }
+
+        function logout() {
+            localStorage.removeItem('ice_token');
+            localStorage.removeItem('ice_user');
+            window.location.href = 'login.html';
+        }
+
+        function show(id) {
+            ['loadingState', 'notLoggedIn', 'noProfile', 'dashboardContent'].forEach(s => {
+                document.getElementById(s).classList.add('hidden');
+            });
+            document.getElementById(id).classList.remove('hidden');
+        }
+    </script>
+</body>
+</html>

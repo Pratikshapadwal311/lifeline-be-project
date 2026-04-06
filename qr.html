@@ -77,39 +77,39 @@
             </div>
 
             <!-- Action Buttons -->
-            <div class="grid sm:grid-cols-3 gap-4">
+            <div class="grid sm:grid-cols-2 gap-4 mb-4">
                 <!-- Download Button -->
-                <button onclick="downloadQRCode()" 
+                <button onclick="downloadQRCode()"
                         class="bg-green-600 hover:bg-green-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center">
                     <i class="fas fa-download mr-2"></i>Download QR Code
                 </button>
 
                 <!-- Print Button -->
-                <button onclick="printQRCode()" 
+                <button onclick="printQRCode()"
                         class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center">
                     <i class="fas fa-print mr-2"></i>Print QR Code
                 </button>
-
-                <!-- Edit Profile Button -->
-                <a href="register.html" 
+            </div>
+            <div class="grid sm:grid-cols-2 gap-4">
+                <!-- Dashboard Button -->
+                <a href="dashboard.html"
                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center text-center">
-                    <i class="fas fa-edit mr-2"></i>Edit Profile
+                    <i class="fas fa-tachometer-alt mr-2"></i>Go to Dashboard
                 </a>
+
+                <!-- Copy Link Button -->
+                <button onclick="copyProfileLink()"
+                        class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-4 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center">
+                    <i class="fas fa-copy mr-2"></i>Copy Profile Link
+                </button>
             </div>
 
-            <!-- Share Section -->
-            <div class="mt-8 pt-8 border-t border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-800 mb-4 text-center">Share Your Profile</h3>
-                <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <button onclick="copyProfileLink()" 
-                            class="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-3 px-6 rounded-lg shadow-lg transform transition hover:scale-105 flex items-center justify-center">
-                        <i class="fas fa-copy mr-2"></i>Copy Profile Link
-                    </button>
-                    <div id="copySuccess" class="hidden text-green-600 text-sm text-center mt-2 sm:mt-0 sm:ml-4 flex items-center">
-                        <i class="fas fa-check-circle mr-2"></i>Link copied!
-                    </div>
+            <!-- Profile Link -->
+            <div class="mt-6 text-center">
+                <div id="copySuccess" class="hidden text-green-600 text-sm mb-2">
+                    <i class="fas fa-check-circle mr-2"></i>Link copied!
                 </div>
-                <p id="profileLink" class="text-xs text-gray-500 text-center mt-4 break-all"></p>
+                <p id="profileLink" class="text-xs text-gray-500 break-all"></p>
             </div>
         </div>
     </main>

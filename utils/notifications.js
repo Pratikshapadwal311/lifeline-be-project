@@ -1,102 +1,127 @@
 /**
  * Notification Utility
  * Handles notifications for QR scans and OTP requests
- * In production, integrate with email/SMS services
  */
 
+const https = require('https');
+
 /**
- * Send notification to QR owner
- * @param {string} contact - Email or phone number
- * @param {string} message - Notification message
- * @param {string} type - 'scan' or 'otp_request'
+ * Send SMS via Fast2SMS
+ * @param {string} phone - Phone number (10 digits)
+ * @param {string} message - SMS message text
  */
-function notifyOwner(contact, message, type = 'scan') {
-  // In development: log to console
-  // In production: send via email/SMS service
-  
-  const timestamp = new Date().toLocaleString();
-  
-  if (process.env.NODE_ENV === 'production') {
-    // TODO: Integrate with email/SMS service
-    // Example: SendGrid, Twilio, AWS SNS, etc.
-    console.log(`[PRODUCTION] ${type.toUpperCase()} Notification to ${contact}: ${message}`);
-  } else {
-    // Development: Console log
-    console.log('\n' + '='.repeat(60));
-    console.log(`📧 NOTIFICATION (${type.toUpperCase()})`);
-    console.log('='.repeat(60));
-    console.log(`To: ${contact}`);
-    console.log(`Time: ${timestamp}`);
-    console.log(`Message: ${message}`);
-    console.log('='.repeat(60) + '\n');
-  }
+async function sendSMS(phone, message) {
+  return new Promise((resolve, reject) => {
+    const apiKey = process.env.FAST2SMS_API_KEY;
+
+    if (!apiKey) {
+      console.log('[SMS] FAST2SMS_API_KEY not set. OTP not sent via SMS.');
+      return resolve(false);
+    }
+
+    // Clean phone number — keep only digits, remove country code if present
+    const cleanPhone = phone.replace(/\D/g, '').replace(/^91/, '').slice(-10);
+
+    if (cleanPhone.length !== 10) {
+      console.log('[SMS] Invalid phone number:', phone);
+      return resolve(false);
+    }
+
+    const payload = JSON.stringify({
+      route: 'q',
+      message: message,
+      language: 'english',
+      flash: 0,
+      numbers: cleanPhone
+    });
+
+    const options = {
+      hostname: 'www.fast2sms.com',
+      path: '/dev/bulkV2',
+      method: 'POST',
+      headers: {
+        authorization: apiKey,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload)
+      }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          const result = JSON.parse(data);
+          if (result.return === true) {
+            console.log(`[SMS] OTP sent successfully to ${cleanPhone}`);
+            resolve(true);
+          } else {
+            console.log('[SMS] Fast2SMS error:', result.message || data);
+            resolve(false);
+          }
+        } catch (e) {
+          console.log('[SMS] Failed to parse Fast2SMS response:', data);
+          resolve(false);
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.log('[SMS] Fast2SMS request error:', err.message);
+      resolve(false);
+    });
+
+    req.write(payload);
+    req.end();
+  });
+}
+
+/**
+ * Send OTP via SMS to the registered emergency contact phone number
+ * @param {string} phone - Phone number
+ * @param {string} otpCode - The OTP code
+ */
+async function sendOTP(phone, otpCode) {
+  const message = `ICE Emergency App: Your OTP to access sensitive medical information is ${otpCode}. Valid for 5 minutes. Do not share this OTP.`;
+
+  console.log('\n' + '='.repeat(60));
+  console.log('📱 OTP DELIVERY');
+  console.log('='.repeat(60));
+  console.log(`To: ${phone}`);
+  console.log(`OTP Code: ${otpCode}`);
+  console.log(`Valid for: 5 minutes`);
+  console.log('='.repeat(60) + '\n');
+
+  const sent = await sendSMS(phone, message);
+  return sent;
 }
 
 /**
  * Notify owner about QR scan
- * @param {string} contact - Owner contact info
- * @param {string} deviceInfo - Device that scanned QR
- * @param {Date} scanTime - When QR was scanned
  */
 function notifyQRScan(contact, deviceInfo, scanTime) {
-  if (!contact) return; // No contact info provided
-  
-  const timeStr = scanTime.toLocaleString();
-  const message = `Your ICE QR code was scanned from ${deviceInfo} at ${timeStr}`;
-  
-  notifyOwner(contact, message, 'scan');
-}
-
-/**
- * Notify owner about OTP request
- * @param {string} contact - Owner contact info
- * @param {string} deviceInfo - Device that requested OTP
- */
-function notifyOTPRequest(contact, deviceInfo) {
   if (!contact) return;
-  
-  const message = `OTP requested to access sensitive medical information from ${deviceInfo}`;
-  
-  notifyOwner(contact, message, 'otp_request');
+  const timeStr = scanTime.toLocaleString();
+  console.log(`[SCAN] QR scanned by ${deviceInfo} at ${timeStr}. Owner: ${contact}`);
 }
 
 /**
- * Send OTP to requester
- * @param {string} contact - Contact info of person requesting OTP
- * @param {string} otpCode - The OTP code
+ * Notify emergency contact that someone is accessing the profile
  */
-function sendOTP(contact, otpCode) {
-  // In development: log to console
-  // In production: send via SMS/Email
-  
-  const timestamp = new Date().toLocaleString();
-  
-  if (process.env.NODE_ENV === 'production') {
-    // TODO: Integrate with SMS/Email service
-    console.log(`[PRODUCTION] OTP sent to ${contact}: ${otpCode}`);
-  } else {
-    // Development: Console log
-    console.log('\n' + '='.repeat(60));
-    console.log('📱 OTP DELIVERY');
-    console.log('='.repeat(60));
-    console.log(`To: ${contact}`);
-    console.log(`Time: ${timestamp}`);
-    console.log(`OTP Code: ${otpCode}`);
-    console.log(`Valid for: 5 minutes`);
-    console.log('='.repeat(60) + '\n');
-  }
+async function notifyOTPRequest(contact, deviceInfo) {
+  if (!contact) return;
+  const message = `ICE Alert: Someone is trying to access the full medical info of the person linked to your emergency contact. Device: ${deviceInfo}`;
+  console.log(`[OTP ALERT] Notifying emergency contact: ${contact}`);
+  await sendSMS(contact, message);
 }
 
 /**
  * Extract device info from request
- * @param {object} req - Express request object
- * @returns {string} Device information string
  */
 function getDeviceInfo(req) {
   const userAgent = req.get('user-agent') || 'Unknown Device';
   const ip = req.ip || req.connection.remoteAddress || 'Unknown IP';
-  
-  // Extract browser/device name from user agent
+
   let deviceName = 'Unknown Device';
   if (userAgent.includes('Mobile')) {
     deviceName = 'Mobile Device';
@@ -105,14 +130,14 @@ function getDeviceInfo(req) {
   } else {
     deviceName = 'Desktop/Web Browser';
   }
-  
+
   return `${deviceName} (${ip})`;
 }
 
 module.exports = {
-  notifyOwner,
+  sendSMS,
+  sendOTP,
   notifyQRScan,
   notifyOTPRequest,
-  sendOTP,
   getDeviceInfo
 };

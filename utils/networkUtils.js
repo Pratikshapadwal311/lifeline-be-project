@@ -45,12 +45,12 @@ function getLocalIP() {
  * Uses local IP in development, environment variable in production
  */
 function getBaseURLForQR(port = 3000) {
-  // In production, use BASE_URL from environment
-  if (process.env.NODE_ENV === 'production' && process.env.BASE_URL) {
+  // Use BASE_URL from environment if set (works in any environment)
+  if (process.env.BASE_URL) {
     return process.env.BASE_URL;
   }
-  
-  // In development, use local IP address
+
+  // Fallback to local IP address
   const localIP = getLocalIP();
   return `http://${localIP}:${port}`;
 }

@@ -1,12 +1,16 @@
 /**
  * API Configuration
- * Centralized configuration for backend API endpoints
+ * Automatically uses the current server's URL so QR codes always work —
+ * whether accessed via localhost, local IP, or Cloudflare tunnel.
  */
 
-// Backend API base URL
-// In development, this should point to your Express server (default: http://localhost:3000)
-// In production, update this to your deployed backend URL
-const API_BASE_URL = 'http://localhost:3000';
+// In a browser, window.location.origin gives the correct base URL automatically.
+// On laptop: http://localhost:3000
+// Via Cloudflare: https://abc-xyz.trycloudflare.com
+// Via local IP: http://192.168.1.5:3000
+const API_BASE_URL = (typeof window !== 'undefined')
+    ? window.location.origin
+    : (process.env.BASE_URL || 'http://localhost:3000');
 
 // API endpoints
 const API_ENDPOINTS = {
@@ -22,7 +26,7 @@ const API_ENDPOINTS = {
     GET_EMERGENCY: (id) => `${API_BASE_URL}/emergency/${id}`
 };
 
-// Export for use in other files
+// Export for use in other files (Node.js context)
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { API_BASE_URL, API_ENDPOINTS };
 }

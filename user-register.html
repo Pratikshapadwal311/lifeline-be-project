@@ -3,162 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Create your ICE account">
     <title>Sign Up - ICE</title>
-    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Custom CSS -->
     <link rel="stylesheet" href="css/style.css">
-    <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-    <!-- Navigation -->
+
     <nav class="bg-white shadow-md">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
-                <div class="flex items-center">
-                    <a href="index.html" class="flex items-center">
-                        <i class="fas fa-heartbeat text-red-600 text-2xl mr-2"></i>
-                        <span class="text-xl font-bold text-gray-800">ICE</span>
-                    </a>
-                </div>
-                <div class="hidden md:flex space-x-4">
-                    <a href="index.html" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Home</a>
-                    <a href="login.html" class="text-gray-700 hover:text-indigo-600 px-3 py-2 rounded-md text-sm font-medium">Login</a>
-                </div>
+                <a href="index.html" class="flex items-center">
+                    <i class="fas fa-heartbeat text-red-600 text-2xl mr-2"></i>
+                    <span class="text-xl font-bold text-gray-800">ICE</span>
+                </a>
+                <a href="login.html" class="text-gray-700 hover:text-indigo-600 text-sm font-medium">Login</a>
             </div>
         </div>
     </nav>
 
-    <!-- Main Content -->
-    <main class="max-w-md mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div class="bg-white rounded-lg shadow-xl p-8">
-            <!-- Header -->
+    <main class="max-w-md mx-auto px-4 py-12">
+        <div class="bg-white rounded-xl shadow-xl p-8">
+
             <div class="text-center mb-8">
                 <div class="bg-indigo-100 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-user-plus text-indigo-600 text-3xl"></i>
                 </div>
-                <h1 class="text-3xl font-bold text-gray-900 mb-2">Create Account</h1>
-                <p class="text-gray-600">Sign up to manage your emergency profiles</p>
+                <h1 class="text-3xl font-bold text-gray-900 mb-1">Create Account</h1>
+                <p class="text-gray-500 text-sm">Sign up to manage your emergency profile</p>
             </div>
 
-            <!-- Registration Form -->
-            <form id="registerForm" class="space-y-6">
-                <!-- Full Name -->
+            <form id="registerForm" class="space-y-5">
+
                 <div>
-                    <label for="fullName" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="fullName" class="block text-sm font-medium text-gray-700 mb-1">
                         Full Name <span class="text-red-500">*</span>
                     </label>
-                    <input type="text" 
-                           id="fullName" 
-                           name="fullName" 
-                           required
+                    <input type="text" id="fullName" name="fullName" required
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                           placeholder="John Doe">
-                    <span class="error-message text-red-500 text-sm hidden"></span>
+                           placeholder="Saniya Patil">
                 </div>
 
-                <!-- Email -->
                 <div>
-                    <label for="email" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
                         Email Address <span class="text-red-500">*</span>
                     </label>
-                    <input type="email" 
-                           id="email" 
-                           name="email" 
-                           required
+                    <input type="email" id="email" name="email" required
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                           placeholder="your.email@example.com">
-                    <span class="error-message text-red-500 text-sm hidden"></span>
+                           placeholder="your@email.com">
                 </div>
 
-                <!-- Password -->
                 <div>
-                    <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
                         Password <span class="text-red-500">*</span>
                     </label>
                     <div class="relative">
-                        <input type="password" 
-                               id="password" 
-                               name="password" 
-                               required
-                               minlength="6"
+                        <input type="password" id="password" name="password" required minlength="6"
                                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent pr-12"
                                placeholder="Minimum 6 characters">
-                        <button type="button" 
-                                onclick="togglePassword()"
-                                class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                        <button type="button" onclick="togglePassword()"
+                                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700">
                             <i id="passwordToggle" class="fas fa-eye"></i>
                         </button>
                     </div>
-                    <p class="text-xs text-gray-500 mt-1">Password must be at least 6 characters</p>
-                    <span class="error-message text-red-500 text-sm hidden"></span>
+                    <p class="text-xs text-gray-400 mt-1">At least 6 characters</p>
                 </div>
 
-                <!-- Confirm Password -->
                 <div>
-                    <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-2">
+                    <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">
                         Confirm Password <span class="text-red-500">*</span>
                     </label>
-                    <input type="password" 
-                           id="confirmPassword" 
-                           name="confirmPassword" 
-                           required
+                    <input type="password" id="confirmPassword" name="confirmPassword" required
                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                            placeholder="Re-enter your password">
-                    <span class="error-message text-red-500 text-sm hidden"></span>
                 </div>
 
-                <!-- Terms and Conditions -->
-                <div class="flex items-start">
-                    <input type="checkbox" 
-                           id="terms" 
-                           name="terms" 
-                           required
-                           class="mt-1 mr-2">
+                <div class="flex items-start gap-2">
+                    <input type="checkbox" id="terms" name="terms" required class="mt-1 w-4 h-4">
                     <label for="terms" class="text-sm text-gray-600">
-                        I agree to the <a href="#" class="text-indigo-600 hover:text-indigo-800">Terms and Conditions</a> 
-                        and <a href="#" class="text-indigo-600 hover:text-indigo-800">Privacy Policy</a>
+                        I agree to the <a href="#" class="text-indigo-600 hover:underline">Terms and Conditions</a>
+                        and <a href="#" class="text-indigo-600 hover:underline">Privacy Policy</a>
                     </label>
                 </div>
 
-                <!-- Submit Button -->
-                <button type="submit" 
-                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 px-8 rounded-lg shadow-lg transform transition hover:scale-105 text-lg">
-                    <i class="fas fa-user-plus mr-2"></i>Create Account
-                </button>
-
-                <!-- Loading Indicator -->
-                <div id="loadingIndicator" class="hidden text-center py-4">
-                    <i class="fas fa-spinner fa-spin text-indigo-600 text-2xl"></i>
-                    <p class="text-gray-600 mt-2">Creating your account...</p>
-                </div>
-
-                <!-- Error Message -->
+                <!-- Error -->
                 <div id="errorMessage" class="hidden bg-red-50 border-l-4 border-red-500 p-4 rounded">
                     <p class="text-red-700 text-sm"></p>
                 </div>
+
+                <button type="submit"
+                        class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-4 rounded-lg shadow-lg text-lg transition hover:scale-105">
+                    <i class="fas fa-user-plus mr-2"></i>Create Account
+                </button>
+
+                <div id="loadingIndicator" class="hidden text-center py-2">
+                    <i class="fas fa-spinner fa-spin text-indigo-600 text-xl"></i>
+                    <p class="text-gray-600 text-sm mt-1">Creating your account...</p>
+                </div>
             </form>
 
-            <!-- Login Link -->
-            <div class="mt-6 text-center">
-                <p class="text-gray-600">
-                    Already have an account? 
+            <div class="mt-6 text-center border-t pt-4">
+                <p class="text-gray-600 text-sm">
+                    Already have an account?
                     <a href="login.html" class="text-indigo-600 hover:text-indigo-800 font-semibold">Login here</a>
                 </p>
             </div>
         </div>
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-white mt-12 py-6">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p class="text-gray-400 text-sm">&copy; 2024 ICE – In Case of Emergency. All rights reserved.</p>
-        </div>
+    <footer class="bg-gray-800 text-white mt-12 py-6 text-center">
+        <p class="text-gray-400 text-sm">&copy; 2024 ICE – In Case of Emergency. All rights reserved.</p>
     </footer>
 
-    <!-- JavaScript -->
     <script src="js/config.js"></script>
     <script src="js/auth.js"></script>
 </body>

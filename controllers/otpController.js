@@ -11,51 +11,52 @@ const { notifyOTPRequest, sendOTP, getDeviceInfo } = require('../utils/notificat
 /**
  * Request OTP for sensitive data access
  * POST /api/request-otp/:id
+ * Body: { phone: "registered emergency contact phone number" }
  */
 const requestOTP = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
-    // Validate ID
+    const { phone } = req.body;
+
     if (!id || id.length < 10) {
       return next(new AppError('Invalid profile ID', 400));
     }
-    
+
+    if (!phone) {
+      return next(new AppError('Please provide your phone number to receive the OTP', 400));
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
+    if (cleanPhone.length !== 10) {
+      return next(new AppError('Please enter a valid 10-digit phone number', 400));
+    }
+
     // Get profile
     const profile = await Profile.findOne({ uniqueId: id });
     if (!profile) {
       return next(new AppError('Profile not found', 404));
     }
-    
+
     // Check if there's an existing valid OTP
-    if (profile.otp && profile.otp.code && !isOTPExpired(profile.otp.expiresAt)) {
-      // Return existing OTP (don't generate new one)
-      const deviceInfo = getDeviceInfo(req);
-      
-      // Notify owner
-      if (profile.ownerNotificationContact) {
-        notifyOTPRequest(profile.ownerNotificationContact, deviceInfo);
-      }
-      
-      // Send OTP to requester (in dev: console, in prod: SMS/Email)
-      // For now, we'll send to a mock contact or console
-      sendOTP('scanner@example.com', profile.otp.code);
-      
+    const profileWithOtp = await Profile.findOne({ uniqueId: id }).select('+otp.code');
+    if (profileWithOtp.otp && profileWithOtp.otp.code && !isOTPExpired(profileWithOtp.otp.expiresAt)) {
+      await sendOTP(phone, profileWithOtp.otp.code);
+
       return res.status(200).json({
         success: true,
-        message: 'OTP sent successfully',
+        message: `OTP sent to your phone number ending in ${cleanPhone.slice(-4)}`,
         data: {
-          expiresIn: Math.floor((new Date(profile.otp.expiresAt) - new Date()) / 1000 / 60) + ' minutes'
+          expiresIn: Math.floor((new Date(profileWithOtp.otp.expiresAt) - new Date()) / 1000 / 60) + ' minutes'
         }
       });
     }
-    
+
     // Generate new OTP
     const otpCode = generateOTP();
-    const expiresAt = getOTPExpiry(5); // 5 minutes expiry
+    const expiresAt = getOTPExpiry(5);
     const deviceInfo = getDeviceInfo(req);
-    
-    // Update profile with OTP
+
+    // Save OTP to profile
     await Profile.findOneAndUpdate(
       { uniqueId: id },
       {
@@ -67,31 +68,23 @@ const requestOTP = async (req, res, next) => {
         }
       }
     );
-    
-    // Notify owner
-    if (profile.ownerNotificationContact) {
-      notifyOTPRequest(profile.ownerNotificationContact, deviceInfo);
+
+    // Notify emergency contact that someone is accessing the profile
+    if (profile.emergencyContactNumber) {
+      notifyOTPRequest(profile.emergencyContactNumber, deviceInfo);
     }
-    
-    // Send OTP to requester
-    // In development: console log
-    // In production: send via SMS/Email to the person requesting
-    // For now, we'll use a placeholder or get from request
-    const requesterContact = req.body.contact || 'scanner@example.com';
-    sendOTP(requesterContact, otpCode);
-    
+
+    // Send OTP to the rescuer's phone number
+    await sendOTP(phone, otpCode);
+
     res.status(200).json({
       success: true,
-      message: 'OTP sent successfully. Check console/logs for development mode.',
+      message: `OTP sent to your phone number ending in ${cleanPhone.slice(-4)}`,
       data: {
-        expiresIn: '5 minutes',
-        // In development, include OTP in response for testing
-        ...(process.env.NODE_ENV !== 'production' && { 
-          otp: otpCode,
-          note: 'OTP included in development mode only'
-        })
+        expiresIn: '5 minutes'
       }
     });
+
   } catch (error) {
     next(error);
   }
@@ -105,35 +98,30 @@ const verifyOTP = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { otp } = req.body;
-    
-    // Validate inputs
+
     if (!id || id.length < 10) {
       return next(new AppError('Invalid profile ID', 400));
     }
-    
+
     if (!otp || otp.length !== 6) {
       return next(new AppError('OTP must be 6 digits', 400));
     }
-    
+
     // Get profile with OTP
     const profile = await Profile.findOne({ uniqueId: id }).select('+otp.code');
     if (!profile) {
       return next(new AppError('Profile not found', 404));
     }
-    
+
     // Validate OTP
     const validation = validateOTP(otp, profile.otp?.code, profile.otp?.expiresAt);
     if (!validation.valid) {
       return next(new AppError(validation.message, 400));
     }
-    
-    // OTP is valid - get full profile for sensitive data
+
+    // Get full profile for sensitive data
     const fullProfile = await Profile.findOne({ uniqueId: id });
-    
-    if (!fullProfile) {
-      return next(new AppError('Profile not found', 404));
-    }
-    
+
     // Clear OTP after successful verification (single-use)
     await Profile.findOneAndUpdate(
       { uniqueId: id },
@@ -146,7 +134,7 @@ const verifyOTP = async (req, res, next) => {
         }
       }
     );
-    
+
     res.status(200).json({
       success: true,
       message: 'OTP verified successfully',
@@ -154,7 +142,15 @@ const verifyOTP = async (req, res, next) => {
         medicalConditions: fullProfile.medicalConditions || 'None',
         allergies: fullProfile.allergies || 'None',
         medications: fullProfile.medications || 'None',
+        knownTriggers: fullProfile.knownTriggers || null,
         organDonor: fullProfile.organDonor || false,
+        doctorName: fullProfile.doctorName || null,
+        doctorPhone: fullProfile.doctorPhone || null,
+        preferredHospital: fullProfile.preferredHospital || null,
+        insuranceProvider: fullProfile.insuranceProvider || null,
+        insurancePolicyNumber: fullProfile.insurancePolicyNumber || null,
+        governmentIdNumber: fullProfile.governmentIdNumber || null,
+        dietaryRestrictions: fullProfile.dietaryRestrictions || null,
         address: fullProfile.address || null,
         city: fullProfile.city || null,
         state: fullProfile.state || null,
@@ -162,6 +158,7 @@ const verifyOTP = async (req, res, next) => {
         notes: fullProfile.notes || null
       }
     });
+
   } catch (error) {
     next(error);
   }

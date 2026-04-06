@@ -1,13 +1,12 @@
 /**
  * User Model
- * Mongoose schema for user authentication
+ * Email + Password based authentication
  */
 
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const userSchema = new mongoose.Schema({
-  // User credentials
   email: {
     type: String,
     required: [true, 'Email is required'],
@@ -16,35 +15,32 @@ const userSchema = new mongoose.Schema({
     trim: true,
     match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address']
   },
-  
+
   password: {
     type: String,
     required: [true, 'Password is required'],
     minlength: [6, 'Password must be at least 6 characters'],
-    select: false // Don't return password by default
+    select: false
   },
-  
-  // User information
+
   fullName: {
     type: String,
     required: [true, 'Full name is required'],
     trim: true,
     maxlength: [100, 'Name cannot exceed 100 characters']
   },
-  
-  // Account status
+
   isActive: {
     type: Boolean,
     default: true
   },
-  
-  // Timestamps
+
   createdAt: {
     type: Date,
     default: Date.now,
     immutable: true
   },
-  
+
   updatedAt: {
     type: Date,
     default: Date.now
@@ -55,18 +51,13 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving
 userSchema.pre('save', async function(next) {
-  // Only hash password if it's been modified
-  if (!this.isModified('password')) {
-    return next();
-  }
-  
-  // Hash password with cost of 12
+  if (!this.isModified('password')) return next();
   this.password = await bcrypt.hash(this.password, 12);
   this.updatedAt = new Date();
   next();
 });
 
-// Instance method to check password
+// Compare password
 userSchema.methods.comparePassword = async function(candidatePassword) {
   return await bcrypt.compare(candidatePassword, this.password);
 };
@@ -79,5 +70,4 @@ userSchema.methods.toJSON = function() {
 };
 
 const User = mongoose.model('User', userSchema);
-
 module.exports = User;

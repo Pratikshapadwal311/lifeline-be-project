@@ -1,23 +1,27 @@
 /**
  * ICE - In Case of Emergency
  * Main Server File
- * 
+ *
  * Express server for QR-based medical information application
+ * with real-time Nearby First-Aider Alerts via Socket.io
  */
 
 require('dotenv').config();
+const http = require('http');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const { Server } = require('socket.io');
 
 // Import routes
 const authRoutes = require('./routes/authRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const emergencyRoutes = require('./routes/emergencyRoutes');
 const otpRoutes = require('./routes/otpRoutes');
+const firstAiderRoutes = require('./routes/firstAiderRoutes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -26,85 +30,184 @@ const errorHandler = require('./middleware/errorHandler');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Security middleware
-app.use(helmet()); // Set security headers
+// Create HTTP server (needed for Socket.io)
+const httpServer = http.createServer(app);
+
+// Initialize Socket.io
+const io = new Server(httpServer, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+});
+
+// ── In-memory first-aider registry ──────────────────────────────────────────
+// Map<socketId, { name, skills, lat, lng, joinedAt }>
+const volunteerRegistry = new Map();
+
+io.on('connection', (socket) => {
+  // Volunteer registers with name, skills, and initial location
+  socket.on('register-volunteer', (data) => {
+    volunteerRegistry.set(socket.id, {
+      name: data.name || 'Anonymous',
+      phone: data.phone || null,
+      skills: Array.isArray(data.skills) ? data.skills : [],
+      lat: data.lat || null,
+      lng: data.lng || null,
+      socketId: socket.id,
+      joinedAt: new Date()
+    });
+    socket.emit('registered', {
+      message: 'You are now active as a first-aider',
+      count: volunteerRegistry.size
+    });
+    io.emit('volunteer-count', volunteerRegistry.size);
+  });
+
+  // Volunteer sends updated GPS location
+  socket.on('update-location', (data) => {
+    const vol = volunteerRegistry.get(socket.id);
+    if (vol && data.lat != null && data.lng != null) {
+      vol.lat = data.lat;
+      vol.lng = data.lng;
+    }
+  });
+
+  // Volunteer goes offline
+  socket.on('disconnect', () => {
+    volunteerRegistry.delete(socket.id);
+    io.emit('volunteer-count', volunteerRegistry.size);
+  });
+});
+
+// Expose io and registry on app.locals so controllers can access them
+app.locals.io = io;
+app.locals.volunteerRegistry = volunteerRegistry;
+
+// ── Trust Cloudflare / reverse proxy headers ────────────────────────────────
+app.set('trust proxy', 1);
+
+// ── Security middleware ─────────────────────────────────────────────────────
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'", "'unsafe-inline'",
+        "https://cdn.tailwindcss.com",
+        "https://cdnjs.cloudflare.com"
+      ],
+      styleSrc: [
+        "'self'", "'unsafe-inline'",
+        "https://cdnjs.cloudflare.com",
+        "https://fonts.googleapis.com"
+      ],
+      fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
+      imgSrc: ["'self'", "data:", "https:"],
+      // Allow same-origin XHR/fetch AND WebSocket connections (ws: + wss:)
+      connectSrc: ["'self'", "ws:", "wss:"],
+      scriptSrcAttr: ["'unsafe-inline'"]
+    }
+  }
+}));
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:8000',
+  origin: function(origin, callback) {
+    callback(null, true); // Allow all origins for development
+  },
   credentials: true
 }));
 
-// Body parsing middleware
+// ── Body parsing ────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Logging middleware
+// ── Logging ─────────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'production') {
   app.use(morgan('dev'));
 } else {
   app.use(morgan('combined'));
 }
 
-// Rate limiting for public endpoints
+// ── Rate limiting ────────────────────────────────────────────────────────────
 const emergencyLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: 'Too many requests from this IP, please try again later.'
 });
 
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50, // More restrictive for API endpoints
+  max: 50,
   message: 'Too many API requests, please try again later.'
 });
 
-// Apply rate limiting
 app.use('/emergency', emergencyLimiter);
 app.use('/api', apiLimiter);
 
-// Serve static files (frontend)
-// Serve HTML, CSS, JS files from root directory
-app.use(express.static('.', { 
-    index: false,
-    dotfiles: 'ignore'
+// ── Dynamic config.js — injects BASE_URL from server environment ─────────────
+// This must come BEFORE express.static so it overrides the static file.
+// All HTML pages load /js/config.js, so API_BASE_URL is always the real public URL
+// (Cloudflare tunnel, deployed URL, or local IP) — never hardcoded localhost.
+app.get('/js/config.js', (req, res) => {
+  const baseUrl = (process.env.BASE_URL || `http://localhost:${PORT}`).trim();
+  res.setHeader('Content-Type', 'application/javascript');
+  res.send(`
+// Auto-generated by server — do not edit manually.
+// BASE_URL is injected from the server's .env at startup.
+const API_BASE_URL = '${baseUrl}';
+
+const API_ENDPOINTS = {
+  REGISTER:       API_BASE_URL + '/api/auth/register',
+  LOGIN:          API_BASE_URL + '/api/auth/login',
+  GET_ME:         API_BASE_URL + '/api/auth/me',
+  CREATE_PROFILE: API_BASE_URL + '/api/profile',
+  GET_PROFILE:    (id) => API_BASE_URL + '/api/profile/' + id,
+  UPDATE_PROFILE: (id) => API_BASE_URL + '/api/profile/' + id,
+  GET_EMERGENCY:  (id) => API_BASE_URL + '/emergency/' + id
+};
+  `.trim());
+});
+
+// ── Static files ─────────────────────────────────────────────────────────────
+app.use(express.static('.', {
+  index: false,
+  dotfiles: 'ignore'
 }));
 
-// Health check endpoint
+// ── Health check ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'OK', 
+  res.status(200).json({
+    status: 'OK',
     message: 'ICE Backend is running',
+    volunteers: volunteerRegistry.size,
     timestamp: new Date().toISOString()
   });
 });
 
-// API Routes
+// ── API Routes ────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
-app.use('/api', otpRoutes); // OTP routes: /api/request-otp/:id, /api/verify-otp/:id
+app.use('/api', otpRoutes);          // /api/request-otp/:id, /api/verify-otp/:id
+app.use('/api', firstAiderRoutes);   // /api/alert/nearby, /api/volunteers/count
 app.use('/emergency', emergencyRoutes);
 
-// Serve frontend HTML files
+// ── Frontend entry point ──────────────────────────────────────────────────────
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
 });
 
-// 404 handler
+// ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    message: 'Route not found'
-  });
+  res.status(404).json({ success: false, message: 'Route not found' });
 });
 
-// Error handling middleware (must be last)
+// ── Error handling middleware ─────────────────────────────────────────────────
 app.use(errorHandler);
 
-// Connect to MongoDB
+// ── MongoDB connection ────────────────────────────────────────────────────────
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/ice-db', {
-      // Mongoose 6+ no longer needs these options, but keeping for compatibility
-    });
+    const conn = await mongoose.connect(
+      process.env.MONGODB_URI || 'mongodb://localhost:27017/ice-db'
+    );
     console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error('❌ MongoDB connection error:', error.message);
@@ -112,20 +215,21 @@ const connectDB = async () => {
   }
 };
 
-// Start server
+// ── Start server ──────────────────────────────────────────────────────────────
 const startServer = async () => {
   try {
     await connectDB();
-    
-    // Bind to 0.0.0.0 to allow access from network (for mobile QR code scanning)
-    app.listen(PORT, '0.0.0.0', () => {
+
+    // Use httpServer.listen (not app.listen) so Socket.io works
+    httpServer.listen(PORT, '0.0.0.0', () => {
       const { getLocalIP } = require('./utils/networkUtils');
       const localIP = getLocalIP();
-      
+
       console.log(`🚀 ICE Backend Server running on port ${PORT}`);
       console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 Local access: http://localhost:${PORT}/health`);
       console.log(`📲 Network access: http://${localIP}:${PORT}/health`);
+      console.log(`🔔 Socket.io enabled – First-Aider Alerts are LIVE`);
       console.log(`\n💡 For mobile QR code scanning, use: http://${localIP}:${PORT}`);
       console.log(`   Make sure your phone is on the same WiFi network!\n`);
     });
@@ -135,13 +239,11 @@ const startServer = async () => {
   }
 };
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Rejection:', err);
   process.exit(1);
 });
 
-// Start the server
 startServer();
 
 module.exports = app;

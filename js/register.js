@@ -212,25 +212,41 @@ function collectFormData() {
     const form = document.getElementById('emergencyForm');
     const formData = new FormData(form);
     
+    // Collect chronic diseases checkboxes
+    const chronicDiseases = Array.from(
+        document.querySelectorAll('input[name="chronicDiseases"]:checked')
+    ).map(cb => cb.value);
+
     return {
         fullName: formData.get('fullName'),
         age: parseInt(formData.get('age')),
         gender: formData.get('gender'),
         bloodGroup: formData.get('bloodGroup'),
+        // Chronic diseases (checkboxes)
+        chronicDiseases: chronicDiseases,
         // Sensitive medical information
         allergies: formData.get('allergies') || 'None',
         medicalConditions: formData.get('medicalConditions') || 'None',
         medications: formData.get('medications') || 'None',
+        knownTriggers: formData.get('knownTriggers') || '',
+        // Doctor & Hospital
+        doctorName: formData.get('doctorName') || '',
+        doctorPhone: formData.get('doctorPhone') || '',
+        preferredHospital: formData.get('preferredHospital') || '',
+        insuranceProvider: formData.get('insuranceProvider') || '',
+        insurancePolicyNumber: formData.get('insurancePolicyNumber') || '',
+        governmentIdNumber: formData.get('governmentIdNumber') || '',
+        dietaryRestrictions: formData.get('dietaryRestrictions') || '',
         // Emergency contact
         emergencyContactName: formData.get('emergencyContactName'),
-        emergencyContactNumber: formData.get('emergencyContactPhone'), // Map to backend field name
+        emergencyContactNumber: formData.get('emergencyContactPhone'),
         // Additional fields (optional)
         organDonor: formData.get('organDonor') === 'on' || false,
         address: formData.get('address') || '',
         city: formData.get('city') || '',
         state: formData.get('state') || '',
         notes: formData.get('notes') || '',
-        // Owner notification (for scan/OTP notifications)
+        // Owner notification
         ownerNotificationContact: formData.get('ownerNotificationContact') || '',
         createdAt: new Date().toISOString()
     };

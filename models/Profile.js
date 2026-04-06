@@ -61,6 +61,65 @@ const profileSchema = new mongoose.Schema({
     default: 'Unknown'
   },
   
+  // Chronic Diseases (checkboxes - for better first aid detection)
+  chronicDiseases: {
+    type: [String],
+    default: []
+  },
+
+  // Doctor Information
+  doctorName: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Doctor name cannot exceed 100 characters']
+  },
+
+  doctorPhone: {
+    type: String,
+    trim: true
+  },
+
+  // Hospital Preference
+  preferredHospital: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Hospital name cannot exceed 200 characters']
+  },
+
+  // Insurance
+  insuranceProvider: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Insurance provider cannot exceed 100 characters']
+  },
+
+  insurancePolicyNumber: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Policy number cannot exceed 100 characters']
+  },
+
+  // Government ID
+  governmentIdNumber: {
+    type: String,
+    trim: true,
+    maxlength: [50, 'Government ID cannot exceed 50 characters']
+  },
+
+  // Dietary Restrictions
+  dietaryRestrictions: {
+    type: String,
+    trim: true,
+    maxlength: [200, 'Dietary restrictions cannot exceed 200 characters']
+  },
+
+  // Known Triggers
+  knownTriggers: {
+    type: String,
+    trim: true,
+    maxlength: [500, 'Known triggers cannot exceed 500 characters']
+  },
+
   // Medical Information (Sensitive - requires OTP)
   allergies: {
     type: String,
