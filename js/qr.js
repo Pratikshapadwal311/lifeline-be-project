@@ -30,10 +30,20 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 async function loadProfileData() {
     try {
-        // Fetch profile from backend
-        const response = await fetch(API_ENDPOINTS.GET_PROFILE(profileId));
+        const token = localStorage.getItem('ice_token');
+        const response = await fetch(API_ENDPOINTS.GET_PROFILE(profileId), {
+            headers: { 'Authorization': token ? `Bearer ${token}` : '' }
+        });
+
+        // Check auth BEFORE parsing JSON — a 401 body may not be valid JSON
+        if (response.status === 401) {
+            alert('Please log in to view your QR code.');
+            window.location.href = 'login.html';
+            return;
+        }
+
         const result = await response.json();
-        
+
         if (!response.ok || !result.success) {
             throw new Error(result.error || 'Profile not found');
         }

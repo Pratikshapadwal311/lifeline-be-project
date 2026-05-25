@@ -5,18 +5,19 @@
 
 const express = require('express');
 const router = express.Router();
-const { getEmergencyInfo, getFirstAid } = require('../controllers/emergencyController');
+const {
+  getEmergencyInfo, getFirstAid, reportScanLocation,
+  sendHelperOtp, verifyHelperOtp,
+  approveAccessRequest, rejectAccessRequest, getAccessRequestStatus
+} = require('../controllers/emergencyController');
 
-/**
- * GET /emergency/:id
- * Get emergency information by unique ID (public, no authentication)
- */
-router.get('/:id', getEmergencyInfo);
-
-/**
- * GET /emergency/:id/firstaid
- * Get first aid instructions based on patient's medical conditions
- */
-router.get('/:id/firstaid', getFirstAid);
+router.get('/:id',                               getEmergencyInfo);
+router.get('/:id/firstaid',                      getFirstAid);
+router.post('/:id/location',                     reportScanLocation);
+router.post('/:id/helper-otp',                   sendHelperOtp);
+router.post('/:id/verify-helper-otp',            verifyHelperOtp);
+router.get('/:id/approve/:requestId',            approveAccessRequest);
+router.get('/:id/reject/:requestId',             rejectAccessRequest);
+router.get('/:id/request-status/:requestId',     getAccessRequestStatus);
 
 module.exports = router;

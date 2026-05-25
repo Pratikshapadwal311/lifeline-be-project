@@ -1,27 +1,21 @@
 /**
  * ICE - In Case of Emergency
  * Main Server File
- *
- * Express server for QR-based medical information application
- * with real-time Nearby First-Aider Alerts via Socket.io
  */
 
 require('dotenv').config();
-const http = require('http');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-const { Server } = require('socket.io');
 
 // Import routes
-const authRoutes = require('./routes/authRoutes');
-const profileRoutes = require('./routes/profileRoutes');
+const authRoutes      = require('./routes/authRoutes');
+const profileRoutes   = require('./routes/profileRoutes');
 const emergencyRoutes = require('./routes/emergencyRoutes');
-const otpRoutes = require('./routes/otpRoutes');
-const firstAiderRoutes = require('./routes/firstAiderRoutes');
+const otpRoutes       = require('./routes/otpRoutes');
 
 // Import middleware
 const errorHandler = require('./middleware/errorHandler');
@@ -29,57 +23,6 @@ const errorHandler = require('./middleware/errorHandler');
 // Initialize Express app
 const app = express();
 const PORT = process.env.PORT || 3000;
-
-// Create HTTP server (needed for Socket.io)
-const httpServer = http.createServer(app);
-
-// Initialize Socket.io
-const io = new Server(httpServer, {
-  cors: { origin: '*', methods: ['GET', 'POST'] }
-});
-
-// ── In-memory first-aider registry ──────────────────────────────────────────
-// Map<socketId, { name, skills, lat, lng, joinedAt }>
-const volunteerRegistry = new Map();
-
-io.on('connection', (socket) => {
-  // Volunteer registers with name, skills, and initial location
-  socket.on('register-volunteer', (data) => {
-    volunteerRegistry.set(socket.id, {
-      name: data.name || 'Anonymous',
-      phone: data.phone || null,
-      skills: Array.isArray(data.skills) ? data.skills : [],
-      lat: data.lat || null,
-      lng: data.lng || null,
-      socketId: socket.id,
-      joinedAt: new Date()
-    });
-    socket.emit('registered', {
-      message: 'You are now active as a first-aider',
-      count: volunteerRegistry.size
-    });
-    io.emit('volunteer-count', volunteerRegistry.size);
-  });
-
-  // Volunteer sends updated GPS location
-  socket.on('update-location', (data) => {
-    const vol = volunteerRegistry.get(socket.id);
-    if (vol && data.lat != null && data.lng != null) {
-      vol.lat = data.lat;
-      vol.lng = data.lng;
-    }
-  });
-
-  // Volunteer goes offline
-  socket.on('disconnect', () => {
-    volunteerRegistry.delete(socket.id);
-    io.emit('volunteer-count', volunteerRegistry.size);
-  });
-});
-
-// Expose io and registry on app.locals so controllers can access them
-app.locals.io = io;
-app.locals.volunteerRegistry = volunteerRegistry;
 
 // ── Trust Cloudflare / reverse proxy headers ────────────────────────────────
 app.set('trust proxy', 1);
@@ -101,23 +44,30 @@ app.use(helmet({
       ],
       fontSrc: ["'self'", "https://cdnjs.cloudflare.com", "https://fonts.gstatic.com"],
       imgSrc: ["'self'", "data:", "https:"],
-      // Allow same-origin XHR/fetch AND WebSocket connections (ws: + wss:)
-      connectSrc: ["'self'", "ws:", "wss:"],
+      connectSrc: ["'self'"],
       scriptSrcAttr: ["'unsafe-inline'"]
     }
   }
 }));
 
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+  : null; // null = allow all in development
+
 app.use(cors({
   origin: function(origin, callback) {
-    callback(null, true); // Allow all origins for development
+    if (!allowedOrigins || !origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
   },
   credentials: true
 }));
 
 // ── Body parsing ────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // ── Logging ─────────────────────────────────────────────────────────────────
 if (process.env.NODE_ENV !== 'production') {
@@ -177,7 +127,6 @@ app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'OK',
     message: 'ICE Backend is running',
-    volunteers: volunteerRegistry.size,
     timestamp: new Date().toISOString()
   });
 });
@@ -185,8 +134,7 @@ app.get('/health', (req, res) => {
 // ── API Routes ────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
-app.use('/api', otpRoutes);          // /api/request-otp/:id, /api/verify-otp/:id
-app.use('/api', firstAiderRoutes);   // /api/alert/nearby, /api/volunteers/count
+app.use('/api', otpRoutes);
 app.use('/emergency', emergencyRoutes);
 
 // ── Frontend entry point ──────────────────────────────────────────────────────
@@ -220,8 +168,7 @@ const startServer = async () => {
   try {
     await connectDB();
 
-    // Use httpServer.listen (not app.listen) so Socket.io works
-    httpServer.listen(PORT, '0.0.0.0', () => {
+    app.listen(PORT, '0.0.0.0', () => {
       const { getLocalIP } = require('./utils/networkUtils');
       const localIP = getLocalIP();
 
@@ -229,7 +176,6 @@ const startServer = async () => {
       console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🌐 Local access: http://localhost:${PORT}/health`);
       console.log(`📲 Network access: http://${localIP}:${PORT}/health`);
-      console.log(`🔔 Socket.io enabled – First-Aider Alerts are LIVE`);
       console.log(`\n💡 For mobile QR code scanning, use: http://${localIP}:${PORT}`);
       console.log(`   Make sure your phone is on the same WiFi network!\n`);
     });

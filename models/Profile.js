@@ -171,49 +171,59 @@ const profileSchema = new mongoose.Schema({
     trim: true
   },
   
-  // Emergency Contact
+  // Emergency Contact (primary — required)
   emergencyContactName: {
     type: String,
     required: [true, 'Emergency contact name is required'],
     trim: true,
     maxlength: [100, 'Contact name cannot exceed 100 characters']
   },
-  
+
   emergencyContactNumber: {
     type: String,
     required: [true, 'Emergency contact number is required'],
     trim: true,
     validate: {
       validator: function(value) {
-        // Remove spaces, dashes, and parentheses for validation
         const cleanPhone = value.replace(/[\s\-\(\)]/g, '');
-        
-        // Indian phone number patterns:
-        // +91 followed by 10 digits starting with 6-9
-        // 0 followed by 10 digits starting with 6-9
-        // 10 digits directly starting with 6-9
         const indianPhoneRegex = /^(\+91|0)?[6-9]\d{9}$/;
-        
-        if (!indianPhoneRegex.test(cleanPhone)) {
-          return false;
-        }
-        
-        // Extract only digits
+        if (!indianPhoneRegex.test(cleanPhone)) return false;
         const digitsOnly = cleanPhone.replace(/\D/g, '');
-        
-        // Validate length based on format
-        if (cleanPhone.startsWith('+91')) {
-          return digitsOnly.length === 12; // +91 (2) + 10 digits
-        } else if (cleanPhone.startsWith('0')) {
-          return digitsOnly.length === 11; // 0 + 10 digits
-        } else {
-          return digitsOnly.length === 10; // Just 10 digits
-        }
+        if (cleanPhone.startsWith('+91')) return digitsOnly.length === 12;
+        if (cleanPhone.startsWith('0'))   return digitsOnly.length === 11;
+        return digitsOnly.length === 10;
       },
       message: 'Please provide a valid Indian phone number (10 digits starting with 6-9, or +91-XXXXXXXXXX)'
     }
   },
-  
+
+  // Additional emergency contacts (optional, up to 3 more)
+  additionalEmergencyContacts: {
+    type: [{
+      name:  { type: String, trim: true, maxlength: 100 },
+      phone: {
+        type: String, trim: true,
+        validate: {
+          validator: function(value) {
+            if (!value) return true;
+            const clean = value.replace(/[\s\-\(\)]/g, '');
+            const digits = clean.replace(/\D/g, '');
+            if (!/^(\+91|0)?[6-9]\d{9}$/.test(clean)) return false;
+            if (clean.startsWith('+91')) return digits.length === 12;
+            if (clean.startsWith('0'))   return digits.length === 11;
+            return digits.length === 10;
+          },
+          message: 'Additional contact must be a valid Indian phone number'
+        }
+      }
+    }],
+    default: [],
+    validate: [
+      { validator: v => v.length >= 2, message: 'At least 2 additional emergency contacts are required (minimum 3 total)' },
+      { validator: v => v.length <= 3, message: 'Maximum 3 additional emergency contacts allowed' }
+    ]
+  },
+
   // Additional Notes
   notes: {
     type: String,
@@ -248,22 +258,29 @@ const profileSchema = new mongoose.Schema({
     }
   },
   
-  // OTP for Sensitive Data Access
+  // OTP for Sensitive Data Access (legacy — kept for API backward compat)
   otp: {
-    code: {
-      type: String,
-      select: false // Don't return OTP by default
-    },
-    expiresAt: {
-      type: Date
-    },
-    requestedAt: {
-      type: Date
-    },
-    requestedByDevice: {
-      type: String,
-      trim: true
-    }
+    code:              { type: String, select: false },
+    expiresAt:         { type: Date },
+    requestedAt:       { type: Date },
+    requestedByDevice: { type: String, trim: true }
+  },
+
+  // Helper's phone + OTP (collected before sending approval request to contacts)
+  helperRequest: {
+    phone:       { type: String, trim: true },
+    otpCode:     { type: String },
+    otpExpiresAt:{ type: Date },
+    requestedAt: { type: Date }
+  },
+
+  // Approve/Reject access request — created after helper OTP is verified
+  accessRequest: {
+    requestId:   { type: String },
+    helperPhone: { type: String, trim: true }, // saved for audit
+    status:      { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
+    expiresAt:   { type: Date },
+    createdAt:   { type: Date }
   },
   
   // Metadata
@@ -302,7 +319,7 @@ profileSchema.index({ createdAt: -1 });
 // Static method to get emergency-safe profile (basic fields only - no sensitive data)
 profileSchema.statics.getEmergencyProfile = function(uniqueId) {
   return this.findOne({ uniqueId }).select(
-    'uniqueId fullName age gender bloodGroup emergencyContactName emergencyContactNumber createdAt lastQrScan'
+    'uniqueId fullName age gender bloodGroup emergencyContactName emergencyContactNumber additionalEmergencyContacts createdAt lastQrScan'
   );
 };
 

@@ -16,19 +16,9 @@ const { notifyOTPRequest, sendOTP, getDeviceInfo } = require('../utils/notificat
 const requestOTP = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { phone } = req.body;
 
     if (!id || id.length < 10) {
       return next(new AppError('Invalid profile ID', 400));
-    }
-
-    if (!phone) {
-      return next(new AppError('Please provide your phone number to receive the OTP', 400));
-    }
-
-    const cleanPhone = phone.replace(/\D/g, '').slice(-10);
-    if (cleanPhone.length !== 10) {
-      return next(new AppError('Please enter a valid 10-digit phone number', 400));
     }
 
     // Get profile
@@ -37,16 +27,31 @@ const requestOTP = async (req, res, next) => {
       return next(new AppError('Profile not found', 404));
     }
 
-    // Check if there's an existing valid OTP
+    // Collect all emergency contact phones (primary + additional)
+    const primaryPhone = profile.emergencyContactNumber;
+    if (!primaryPhone) {
+      return next(new AppError('No registered emergency contact found for this profile', 400));
+    }
+
+    const allContacts = [
+      { name: profile.emergencyContactName, phone: primaryPhone },
+      ...(profile.additionalEmergencyContacts || []).filter(c => c.phone)
+    ];
+
+    const contactCount = allContacts.length;
+    const maskedPrimary = `XXXXXX${primaryPhone.replace(/\D/g, '').slice(-4)}`;
+
+    // Check if there's an existing valid OTP — resend it to all contacts
     const profileWithOtp = await Profile.findOne({ uniqueId: id }).select('+otp.code');
     if (profileWithOtp.otp && profileWithOtp.otp.code && !isOTPExpired(profileWithOtp.otp.expiresAt)) {
-      await sendOTP(phone, profileWithOtp.otp.code);
+      await Promise.all(allContacts.map(c => sendOTP(c.phone, profileWithOtp.otp.code)));
 
       return res.status(200).json({
         success: true,
-        message: `OTP sent to your phone number ending in ${cleanPhone.slice(-4)}`,
+        message: `OTP sent to ${contactCount} emergency contact${contactCount > 1 ? 's' : ''} (primary: ${maskedPrimary})`,
         data: {
-          expiresIn: Math.floor((new Date(profileWithOtp.otp.expiresAt) - new Date()) / 1000 / 60) + ' minutes'
+          expiresIn: Math.floor((new Date(profileWithOtp.otp.expiresAt) - new Date()) / 1000 / 60) + ' minutes',
+          contactCount
         }
       });
     }
@@ -69,19 +74,15 @@ const requestOTP = async (req, res, next) => {
       }
     );
 
-    // Notify emergency contact that someone is accessing the profile
-    if (profile.emergencyContactNumber) {
-      notifyOTPRequest(profile.emergencyContactNumber, deviceInfo);
-    }
-
-    // Send OTP to the rescuer's phone number
-    await sendOTP(phone, otpCode);
+    // Send same OTP to ALL emergency contacts at once
+    await Promise.all(allContacts.map(c => sendOTP(c.phone, otpCode)));
 
     res.status(200).json({
       success: true,
-      message: `OTP sent to your phone number ending in ${cleanPhone.slice(-4)}`,
+      message: `OTP sent to ${contactCount} emergency contact${contactCount > 1 ? 's' : ''} (primary: ${maskedPrimary})`,
       data: {
-        expiresIn: '5 minutes'
+        expiresIn: '5 minutes',
+        contactCount
       }
     });
 

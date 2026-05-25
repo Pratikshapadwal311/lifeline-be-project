@@ -138,8 +138,25 @@ const updateProfile = async (req, res, next) => {
   }
 };
 
+/**
+ * Get the authenticated user's own profile
+ * GET /api/profile/mine
+ */
+const getMyProfile = async (req, res, next) => {
+  try {
+    const profile = await Profile.findOne({ userId: req.user.id }).select('uniqueId fullName createdAt');
+    if (!profile) {
+      return res.status(404).json({ success: false, error: 'No profile found' });
+    }
+    res.status(200).json({ success: true, data: { profileId: profile.uniqueId } });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   createProfile,
   getProfile,
+  getMyProfile,
   updateProfile
 };

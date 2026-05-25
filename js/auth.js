@@ -58,8 +58,23 @@ async function handleLogin(e) {
     localStorage.setItem('ice_token', data.data.token);
     localStorage.setItem('ice_user',  JSON.stringify(data.data.user));
 
-    const profileId = localStorage.getItem('ice_current_profile');
-    window.location.href = profileId ? 'dashboard.html' : 'register.html';
+    // Always fetch the user's profile from the server — don't rely on localStorage
+    try {
+      const profileRes = await fetch(`${API_BASE_URL}/api/profile/mine`, {
+        headers: { 'Authorization': 'Bearer ' + data.data.token }
+      });
+      const profileData = await profileRes.json();
+      if (profileData.success && profileData.data.profileId) {
+        localStorage.setItem('ice_current_profile', profileData.data.profileId);
+        window.location.href = 'dashboard.html';
+      } else {
+        window.location.href = 'register.html';
+      }
+    } catch {
+      // Network error — fall back to whatever is cached locally
+      const profileId = localStorage.getItem('ice_current_profile');
+      window.location.href = profileId ? 'dashboard.html' : 'register.html';
+    }
 
   } catch (error) {
     showError(error.message || 'Login failed. Please try again.');

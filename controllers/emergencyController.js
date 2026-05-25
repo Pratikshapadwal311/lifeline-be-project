@@ -6,14 +6,8 @@
 const Profile = require('../models/Profile');
 const { AppError } = require('../middleware/errorHandler');
 const { generateFirstAidInstructions, getGeneralSteps } = require('../utils/firstAidRules');
-
-function getDeviceInfo(req) {
-  return req.headers['user-agent'] || 'Unknown device';
-}
-
-function notifyQRScan(contact, deviceInfo, scanTime) {
-  // Notification not implemented — placeholder
-}
+const crypto = require('crypto');
+const { notifyQRScan, notifyScanLocation, getIPLocation, getDeviceInfo, notifyApprovalRequest } = require('../utils/notifications');
 
 /**
  * Escape HTML to prevent XSS attacks
@@ -76,40 +70,30 @@ const getEmergencyInfo = async (req, res, next) => {
       return next(new AppError('Emergency information not found. Please check the QR code or contact emergency services.', 404));
     }
     
-    // Log QR scan and notify owner
+    // Log QR scan
     const deviceInfo = getDeviceInfo(req);
     const scanTime = new Date();
-    
-    // Update last scan info
+
     await Profile.findOneAndUpdate(
       { uniqueId: id },
-      {
-        lastQrScan: {
-          scannedAt: scanTime,
-          scannedByDevice: deviceInfo
-        }
-      }
+      { lastQrScan: { scannedAt: scanTime, scannedByDevice: deviceInfo } }
     );
-    
-    // Notify owner if contact info exists
+
+    // Fetch full profile for contacts
     const fullProfile = await Profile.findOne({ uniqueId: id });
-    if (fullProfile && fullProfile.ownerNotificationContact) {
-      notifyQRScan(fullProfile.ownerNotificationContact, deviceInfo, scanTime);
+
+    const allContacts = [
+      fullProfile?.emergencyContactNumber,
+      ...(fullProfile?.additionalEmergencyContacts || []).map(c => c.phone)
+    ].filter(Boolean);
+
+    // Notify all contacts that QR was scanned (plain alert — no sensitive info)
+    const scannerIP = req.ip || req.connection?.remoteAddress;
+    const ipLocation = await getIPLocation(scannerIP);
+    if (allContacts.length > 0) {
+      allContacts.forEach(phone => notifyQRScan(phone, deviceInfo, scanTime, fullProfile.fullName, ipLocation));
     }
-    
-    // Check if profile has sensitive data
-    const hasSensitiveData = fullProfile && (
-      (fullProfile.allergies && fullProfile.allergies.toLowerCase() !== 'none') ||
-      (fullProfile.medicalConditions && fullProfile.medicalConditions.toLowerCase() !== 'none') ||
-      (fullProfile.medications && fullProfile.medications.toLowerCase() !== 'none') ||
-      fullProfile.organDonor ||
-      fullProfile.address ||
-      fullProfile.city ||
-      fullProfile.state ||
-      fullProfile.photo_url ||
-      (fullProfile.notes && fullProfile.notes.trim())
-    );
-    
+
     // Return only BASIC emergency information (no sensitive data)
     const emergencyData = {
       fullName: profile.fullName,
@@ -118,543 +102,593 @@ const getEmergencyInfo = async (req, res, next) => {
       bloodGroup: profile.bloodGroup || 'Unknown',
       emergencyContactName: profile.emergencyContactName,
       emergencyContactNumber: profile.emergencyContactNumber,
-      // Sensitive fields are NOT included here
-      hasSensitiveData: hasSensitiveData // Flag to show OTP button
+      additionalEmergencyContacts: profile.additionalEmergencyContacts || [],
+      chronicDiseases: fullProfile?.chronicDiseases || []
     };
     
     // If browser request (Accept: text/html), serve HTML page
     if (req.accepts('html')) {
+      const totalContacts = 1 + emergencyData.additionalEmergencyContacts.length;
       return res.send(`
         <!DOCTYPE html>
         <html lang="en">
         <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <meta name="description" content="Emergency medical information display">
           <title>Emergency Information - ICE</title>
           <script src="https://cdn.tailwindcss.com"></script>
           <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
           <style>
             html { scroll-behavior: smooth; }
-            *:focus { outline: 2px solid #4f46e5; outline-offset: 2px; }
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background-color: #CAF0F8; }
             .info-text { white-space: pre-wrap; word-wrap: break-word; line-height: 1.6; }
-            @media (max-width: 640px) {
-              .text-5xl { font-size: 2rem; }
-              .text-3xl { font-size: 1.5rem; }
-              .text-2xl { font-size: 1.25rem; }
+            .bg-navy   { background-color: #03045E; }
+            .bg-blue   { background-color: #0077B6; }
+            .bg-cyan   { background-color: #00B4D8; }
+            .bg-lcyan  { background-color: #90E0EF; }
+            .bg-xlcyan { background-color: #CAF0F8; }
+            .text-navy  { color: #03045E; }
+            .text-blue  { color: #0077B6; }
+            .text-cyan  { color: #00B4D8; }
+            .text-lcyan { color: #90E0EF; }
+            .border-lcyan { border-color: #90E0EF; }
+            .border-cyan  { border-color: #00B4D8; }
+            .btn-navy { background-color: #03045E; color: white; transition: background-color .2s; }
+            .btn-navy:hover { background-color: #020339; }
+            .btn-blue { background-color: #0077B6; color: white; transition: background-color .2s; }
+            .btn-blue:hover { background-color: #005f92; }
+            @keyframes call-pulse {
+              0%, 100% { box-shadow: 0 0 0 0 rgba(0,119,182,0.5); }
+              60% { box-shadow: 0 0 0 14px rgba(0,119,182,0); }
             }
+            .call-pulse { animation: call-pulse 1.8s ease-in-out infinite; }
+            @keyframes fade-in {
+              from { opacity: 0; transform: translateY(-8px); }
+              to   { opacity: 1; transform: translateY(0); }
+            }
+            .fade-in { animation: fade-in 0.4s ease forwards; }
           </style>
         </head>
-        <body class="bg-gray-50 min-h-screen">
-          <!-- Language Switcher -->
-          <div class="bg-gray-800 text-white px-4 py-2">
-            <div class="max-w-4xl mx-auto flex items-center justify-between flex-wrap gap-2">
-              <span class="text-xs text-gray-400">🌐 Select Language:</span>
-              <div class="flex flex-wrap gap-1" id="langButtons"></div>
+        <body class="min-h-screen">
+
+          <!-- Header -->
+          <div class="bg-navy text-white py-4 px-4 text-center">
+            <div class="flex items-center justify-center gap-3">
+              <i class="fas fa-heartbeat text-2xl text-lcyan"></i>
+              <h1 class="text-xl md:text-2xl font-bold tracking-wide">EMERGENCY MEDICAL INFORMATION</h1>
             </div>
           </div>
-          <div class="bg-red-600 text-white py-3 px-4 text-center">
-            <div class="flex items-center justify-center">
-              <i class="fas fa-exclamation-triangle text-2xl mr-3"></i>
-              <h1 class="text-xl md:text-2xl font-bold" id="txt_emergencyHeader">EMERGENCY MEDICAL INFORMATION</h1>
-            </div>
+
+          <!-- 112 Emergency Call Button -->
+          <div class="bg-white px-4 py-3 text-center border-b border-lcyan">
+            <a href="tel:112"
+               class="inline-flex items-center justify-center gap-3 bg-cyan hover:bg-blue text-white font-bold py-3 px-8 rounded-xl shadow-lg text-lg transition-colors w-full max-w-sm mx-auto">
+              <i class="fas fa-phone-alt text-2xl"></i>
+              <span>Call 112 — Emergency Services</span>
+            </a>
+            <p class="text-xs text-blue mt-1">Tap to call ambulance immediately</p>
           </div>
-          <main class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10">
-            <div class="bg-white rounded-lg shadow-lg p-6 md:p-8 mb-6 border-l-4 border-indigo-600">
-              <div class="text-center">
-                <i class="fas fa-user text-4xl text-indigo-600 mb-4"></i>
-                <h2 class="text-3xl md:text-5xl font-bold text-gray-900 mb-2">${escapeHtml(emergencyData.fullName || 'Unknown')}</h2>
-                <p class="text-gray-600 text-lg" id="txt_emergencyProfile">Emergency Medical Profile</p>
-              </div>
+
+          <!-- Notified banner -->
+          <div class="bg-cyan text-white px-4 py-2 text-center text-sm font-medium fade-in">
+            <i class="fas fa-bell mr-2"></i>All ${totalContacts} emergency contact${totalContacts > 1 ? 's' : ''} notified of this scan
+            <i class="fas fa-check-circle ml-2"></i>
+          </div>
+
+          <!-- Scan time -->
+          <div class="bg-lcyan border-b border-cyan px-4 py-1 text-center">
+            <p class="text-xs text-blue"><i class="fas fa-clock mr-1"></i>Scanned at: <span id="scanTime"></span></p>
+          </div>
+
+          <div id="locationBanner" class="hidden px-4 py-2 text-center text-sm font-medium fade-in"></div>
+
+          <main class="max-w-2xl mx-auto px-4 py-6 space-y-5">
+
+            <!-- ① Patient Name -->
+            <div class="bg-white rounded-xl shadow-sm border border-lcyan p-6 text-center fade-in">
+              <i class="fas fa-user-circle text-5xl text-cyan mb-3"></i>
+              <h2 class="text-4xl md:text-5xl font-bold text-navy">${escapeHtml(emergencyData.fullName || 'Unknown')}</h2>
+              <p class="text-blue text-xs uppercase tracking-widest mt-2 font-medium">Emergency Medical Profile</p>
             </div>
-            <div class="grid md:grid-cols-2 gap-6 mb-6">
-              <div class="bg-red-50 border-2 border-red-500 rounded-lg shadow-lg p-6">
-                <div class="flex items-center mb-3">
-                  <i class="fas fa-tint text-red-600 text-2xl mr-3"></i>
-                  <h3 class="text-lg font-semibold text-gray-800" id="txt_bloodGroup">Blood Group</h3>
+
+            <!-- ② Blood Group (blue, not red) -->
+            <div class="bg-blue rounded-xl shadow-lg p-6 text-center text-white fade-in">
+              <div class="flex items-center justify-center gap-3 mb-2">
+                <i class="fas fa-tint text-lcyan text-3xl"></i>
+                <h3 class="text-lg font-bold uppercase tracking-widest text-lcyan">Blood Group</h3>
+              </div>
+              <p class="text-7xl font-black tracking-tight leading-none">${escapeHtml(emergencyData.bloodGroup || '?')}</p>
+              <p class="text-lcyan text-sm mt-3 font-medium">
+                <i class="fas fa-info-circle mr-1"></i>Share with paramedics immediately
+              </p>
+            </div>
+
+            <!-- ③ Basic Info -->
+            <div class="bg-white rounded-xl shadow-sm border border-lcyan p-5 fade-in">
+              <div class="flex items-center mb-3 gap-2">
+                <i class="fas fa-info-circle text-cyan text-xl"></i>
+                <h3 class="font-semibold text-navy">Basic Information</h3>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="bg-xlcyan rounded-lg p-3 text-center border border-lcyan">
+                  <p class="text-xs text-cyan uppercase tracking-wide mb-1 font-medium">Age</p>
+                  <p class="text-2xl font-bold text-navy">${emergencyData.age ? escapeHtml(String(emergencyData.age)) : '—'}</p>
                 </div>
-                <p class="text-3xl font-bold text-red-700">${escapeHtml(emergencyData.bloodGroup || 'Unknown')}</p>
-              </div>
-              <div class="bg-white rounded-lg shadow-lg p-6 border-l-4 border-blue-500">
-                <div class="flex items-center mb-3">
-                  <i class="fas fa-info-circle text-blue-600 text-2xl mr-3"></i>
-                  <h3 class="text-lg font-semibold text-gray-800" id="txt_basicInfo">Basic Info</h3>
-                </div>
-                <div class="space-y-2">
-                  <p class="text-gray-700"><span class="font-semibold">Age:</span> ${emergencyData.age ? escapeHtml(String(emergencyData.age)) : 'Not specified'}</p>
-                  <p class="text-gray-700"><span class="font-semibold">Gender:</span> ${escapeHtml(emergencyData.gender || 'Not specified')}</p>
+                <div class="bg-xlcyan rounded-lg p-3 text-center border border-lcyan">
+                  <p class="text-xs text-cyan uppercase tracking-wide mb-1 font-medium">Gender</p>
+                  <p class="text-2xl font-bold text-navy">${escapeHtml(emergencyData.gender || '—')}</p>
                 </div>
               </div>
             </div>
-            <!-- First Aid Instructions Section -->
-            <div class="bg-green-600 rounded-lg shadow-lg p-6 mb-6 text-center">
-              <i class="fas fa-first-aid text-white text-4xl mb-3"></i>
-              <h3 class="text-xl font-bold text-white mb-2" id="txt_firstAidTitle">Need First Aid Instructions?</h3>
-              <p class="text-green-100 mb-4" id="txt_firstAidDesc">Get step-by-step guidance based on this patient's medical conditions</p>
-              <button onclick="loadFirstAid('${id}')"
-                      id="firstAidBtn"
-                      class="bg-white text-green-600 font-bold py-3 px-8 rounded-lg shadow hover:bg-green-50 text-lg">
-                <i class="fas fa-heartbeat mr-2"></i><span id="txt_showFirstAid">Show First Aid Instructions</span>
-              </button>
-            </div>
 
-            <!-- First Aid Content (hidden initially) -->
-            <div id="firstAidSection" class="hidden mb-6"></div>
-
-            <!-- Sensitive Data Section - OTP Protected (hidden initially) -->
-            <div id="sensitiveDataSection" class="hidden">
-              <!-- This will be populated after OTP verification via JavaScript -->
-            </div>
-
-            <!-- Alert Nearby First-Aiders Section -->
-            <div class="bg-orange-50 border-2 border-orange-400 rounded-lg shadow-lg p-6 mb-6">
-              <div class="text-center">
-                <i class="fas fa-people-carry text-orange-500 text-4xl mb-3"></i>
-                <h3 class="text-xl font-bold text-gray-800 mb-2">Alert Nearby First-Aiders</h3>
-                <p class="text-gray-600 mb-4">Notify trained volunteers within 500m about this emergency</p>
-                <div id="alertStatus" class="hidden mb-4 p-3 rounded-lg text-sm font-medium"></div>
-                <button id="alertBtn"
-                        onclick="alertNearbyFirstAiders('${id}', '${escapeHtml(emergencyData.fullName)}', '${escapeHtml(emergencyData.bloodGroup)}')"
-                        class="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-8 rounded-lg shadow-lg text-lg">
-                  <i class="fas fa-map-marker-alt mr-2"></i>Get My Location &amp; Alert First-Aiders
-                </button>
-                <p class="text-xs text-gray-400 mt-2">Your location is only used to find volunteers nearby</p>
+            <!-- ④ First Aid (auto-loaded) -->
+            <div class="bg-white rounded-xl shadow-sm border border-lcyan p-5 fade-in">
+              <div class="flex items-center gap-2 mb-4">
+                <i class="fas fa-first-aid text-cyan text-xl"></i>
+                <h3 class="font-semibold text-navy">First Aid Instructions</h3>
+              </div>
+              <div id="firstAidContent">
+                <div class="flex items-center justify-center py-6 text-cyan gap-2">
+                  <i class="fas fa-spinner fa-spin"></i>
+                  <span class="text-sm">Loading instructions…</span>
+                </div>
               </div>
             </div>
 
-            <!-- OTP Access Section -->
-            ${emergencyData.hasSensitiveData ? `
-            <div class="bg-yellow-50 border-2 border-yellow-500 rounded-lg shadow-lg p-6 mb-6">
-              <div class="text-center">
-                <i class="fas fa-shield-alt text-yellow-600 text-4xl mb-4"></i>
-                <h3 class="text-xl font-bold text-gray-800 mb-2" id="txt_sensitiveTitle">Sensitive Medical Information Protected</h3>
-                <p class="text-gray-700 mb-4" id="txt_sensitiveDesc">Enter your phone number to receive an OTP and access full medical information.</p>
+            <!-- ⑤ Emergency Contacts — always visible, with call buttons -->
+            <div class="bg-white border border-lcyan rounded-xl shadow-sm p-5 fade-in">
+              <div class="flex items-center gap-2 mb-4">
+                <i class="fas fa-phone-alt text-cyan text-xl"></i>
+                <h3 class="font-semibold text-navy">Emergency Contacts</h3>
+                <span class="ml-auto bg-cyan text-white text-xs font-bold px-2 py-1 rounded-full">${totalContacts}</span>
               </div>
+              <div class="space-y-3">
+                ${emergencyData.emergencyContactNumber ? `
+                <a href="tel:${escapeHtml(emergencyData.emergencyContactNumber.replace(/\D/g, ''))}"
+                   class="call-pulse flex items-center w-full btn-navy font-bold py-4 px-5 rounded-xl shadow text-base">
+                  <i class="fas fa-phone-alt text-xl mr-4 flex-shrink-0"></i>
+                  <div class="text-left min-w-0">
+                    <div class="truncate">${escapeHtml(emergencyData.emergencyContactName || 'Primary Contact')}</div>
+                    <div class="text-xs font-normal text-lcyan mt-0.5">Primary Emergency Contact</div>
+                  </div>
+                  <span class="ml-auto text-xs bg-white bg-opacity-20 px-2 py-1 rounded-lg flex-shrink-0">TAP TO CALL</span>
+                </a>` : ''}
+                ${emergencyData.additionalEmergencyContacts.map((c, i) => c.phone ? `
+                <a href="tel:${escapeHtml(c.phone.replace(/\D/g, ''))}"
+                   class="flex items-center w-full btn-blue font-bold py-4 px-5 rounded-xl shadow text-base">
+                  <i class="fas fa-phone-alt text-xl mr-4 flex-shrink-0"></i>
+                  <div class="text-left min-w-0">
+                    <div class="truncate">${escapeHtml(c.name || 'Contact ' + (i + 2))}</div>
+                    <div class="text-xs font-normal text-lcyan mt-0.5">Emergency Contact ${i + 2}</div>
+                  </div>
+                  <span class="ml-auto text-xs bg-white bg-opacity-20 px-2 py-1 rounded-lg flex-shrink-0">TAP TO CALL</span>
+                </a>` : '').join('')}
+              </div>
+            </div>
 
-              <!-- Phone Number Input -->
-              <div id="phoneSection" class="bg-white rounded-lg p-4 mb-4">
-                <label class="block text-sm font-medium text-gray-700 mb-2">
-                  <i class="fas fa-phone mr-1 text-yellow-600"></i><span id="txt_yourPhone">Your Phone Number:</span>
-                </label>
-                <div class="flex flex-col gap-2">
-                  <input type="tel"
-                         id="phoneInput"
-                         maxlength="13"
-                         class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-lg focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
-                         placeholder="Enter your phone number">
-                  <button onclick="requestOTP('${id}')"
-                          id="requestOTPBtn"
-                          class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg">
-                    <i class="fas fa-key mr-2"></i><span id="txt_sendOtp">Send OTP</span>
+            <!-- ⑥ View Full Medical Info — Phone + OTP flow -->
+            <div id="accessArea" class="fade-in">
+
+              <!-- Step 1: Enter phone number -->
+              <div id="phoneStep" class="bg-white rounded-xl shadow-sm border border-lcyan p-5">
+                <div class="flex items-center gap-2 mb-2">
+                  <i class="fas fa-lock text-cyan text-xl"></i>
+                  <h3 class="font-semibold text-navy">View Full Medical Information</h3>
+                </div>
+                <p class="text-sm text-blue mb-4">
+                  Enter your phone number to receive a one-time OTP. After verifying, an approval request will be sent to the patient's emergency contacts.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input type="tel" id="helperPhone"
+                         placeholder="+91 9876543210" inputmode="tel"
+                         class="flex-1 px-4 py-3 border border-lcyan rounded-lg text-navy text-sm focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:border-cyan">
+                  <button onclick="sendHelperOtp()" id="sendOtpBtn"
+                          class="btn-navy font-bold px-5 py-3 rounded-lg text-sm flex items-center justify-center gap-2 sm:flex-shrink-0">
+                    <i class="fas fa-paper-plane"></i> Send OTP
                   </button>
                 </div>
-                <p id="phoneMessage" class="text-sm mt-2"></p>
+                <p id="phoneError" class="text-red-500 text-xs mt-2 hidden"></p>
               </div>
 
-              <!-- OTP Input Section (hidden initially) -->
-              <div id="otpSection" class="hidden mt-4">
-                <div class="bg-white rounded-lg p-4 mb-4">
-                  <label class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-lock mr-1 text-green-600"></i><span id="txt_enterOtp">Enter OTP sent to your phone:</span>
-                  </label>
-                  <div class="flex flex-col gap-2">
-                    <input type="text"
-                           id="otpInput"
-                           maxlength="6"
-                           pattern="[0-9]{6}"
-                           inputmode="numeric"
-                           class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg text-center text-2xl font-bold tracking-widest focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                           placeholder="000000">
-                    <button onclick="verifyOTP('${id}')"
-                            class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg">
-                      <i class="fas fa-check mr-2"></i><span id="txt_verifyOtp">Verify OTP</span>
-                    </button>
+              <!-- Step 2: Enter OTP (hidden initially) -->
+              <div id="otpStep" class="hidden bg-white rounded-xl shadow-sm border border-lcyan p-5">
+                <div class="flex items-center gap-2 mb-2">
+                  <i class="fas fa-mobile-alt text-cyan text-xl"></i>
+                  <h3 class="font-semibold text-navy">Enter OTP</h3>
+                </div>
+                <p class="text-sm text-blue mb-4">
+                  OTP sent to <strong id="otpPhoneDisplay"></strong>. Valid for 5 minutes.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-2">
+                  <input type="text" id="otpInput"
+                         placeholder="• • • • • •" maxlength="6" inputmode="numeric"
+                         class="flex-1 px-4 py-3 border border-lcyan rounded-lg text-navy text-center text-2xl tracking-widest font-bold focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:border-cyan">
+                  <button onclick="verifyOtp()" id="verifyOtpBtn"
+                          class="btn-blue font-bold px-5 py-3 rounded-lg text-sm flex items-center justify-center gap-2 sm:flex-shrink-0">
+                    <i class="fas fa-check"></i> Verify
+                  </button>
+                </div>
+                <p id="otpError" class="text-red-500 text-xs mt-2 hidden"></p>
+                <button onclick="resetToPhone()" class="text-xs text-cyan mt-3 hover:underline block">
+                  <i class="fas fa-arrow-left mr-1"></i>Change phone number
+                </button>
+              </div>
+
+            </div>
+
+            <!-- Approval waiting card (hidden, shown after button click) -->
+            <div id="approvalCard" class="hidden bg-navy rounded-2xl shadow-lg p-8 text-center text-white fade-in">
+              <i class="fas fa-shield-alt text-lcyan text-5xl mb-4"></i>
+              <h2 class="text-xl font-bold mb-2">Approval Request Sent</h2>
+              <p class="text-lcyan text-sm mb-6">
+                SMS sent to <strong>${totalContacts}</strong> emergency contact${totalContacts > 1 ? 's' : ''}.
+                Any one of them can tap <strong>Approve</strong> to unlock full medical details.
+              </p>
+              <div id="approvalStatus">
+                <div class="flex items-center justify-center gap-4 bg-white bg-opacity-10 rounded-xl py-5 px-4">
+                  <i class="fas fa-spinner fa-spin text-3xl text-lcyan flex-shrink-0"></i>
+                  <div class="text-left">
+                    <p class="font-bold text-white">Waiting for approval…</p>
+                    <p class="text-xs text-lcyan mt-1">Contact received Approve / Reject links via SMS</p>
                   </div>
-                  <p id="otpMessage" class="text-sm mt-2"></p>
                 </div>
               </div>
             </div>
-            ` : ''}
-            <div class="bg-green-50 border-2 border-green-500 rounded-lg shadow-lg p-6 md:p-8">
-              <div class="flex items-center mb-4">
-                <i class="fas fa-phone-alt text-green-600 text-3xl mr-4"></i>
-                <h3 class="text-2xl font-bold text-gray-800" id="txt_emergencyContact">Emergency Contact</h3>
-              </div>
-              <div class="space-y-4">
-                <div class="bg-white rounded-lg p-4 shadow-sm">
-                  <p class="text-lg text-gray-700 mb-1"><span class="font-semibold text-gray-900">Name:</span></p>
-                  <p class="text-xl text-gray-800">${escapeHtml(emergencyData.emergencyContactName || 'Not specified')}</p>
-                </div>
-                ${emergencyData.emergencyContactNumber ? `
-                <a href="tel:${escapeHtml(emergencyData.emergencyContactNumber.replace(/\D/g, ''))}" 
-                   class="inline-block w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-8 rounded-lg shadow-lg transform transition hover:scale-105 text-lg md:text-xl text-center">
-                  <i class="fas fa-phone mr-2"></i>Call ${escapeHtml(emergencyData.emergencyContactNumber)}
-                </a>
-                ` : '<div class="bg-white rounded-lg p-4 shadow-sm"><p class="text-gray-600">Phone number not available</p></div>'}
-              </div>
-            </div>
-            <div class="mt-8 bg-blue-50 border-l-4 border-blue-500 p-4 md:p-6 rounded-lg">
-              <div class="flex items-start">
-                <i class="fas fa-info-circle text-blue-600 text-xl mr-3 mt-1"></i>
+
+            <!-- Full medical details (hidden, filled by JS after approval) -->
+            <div id="fullMedicalDetails" class="hidden space-y-4 fade-in"></div>
+
+            <!-- Important Notice -->
+            <div class="bg-xlcyan border-l-4 border-cyan p-4 rounded-lg">
+              <div class="flex items-start gap-3">
+                <i class="fas fa-info-circle text-cyan text-lg mt-0.5 flex-shrink-0"></i>
                 <div>
-                  <p class="text-sm md:text-base text-blue-800 font-semibold mb-1" id="txt_importantNotice">Important Notice</p>
-                  <p class="text-sm md:text-base text-blue-700">
-                    This information is provided for emergency medical purposes only. 
-                    For life-threatening emergencies, call <strong>911</strong> or your local emergency number immediately.
+                  <p class="text-sm font-semibold text-navy mb-1">Important Notice</p>
+                  <p class="text-sm text-blue">
+                    This information is for emergency medical purposes only.
+                    For life-threatening emergencies, call <strong>112</strong> immediately.
                   </p>
                 </div>
               </div>
             </div>
-          </main>
-          <footer class="bg-gray-800 text-white mt-12 py-6">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-              <div class="flex items-center justify-center mb-2">
-                <i class="fas fa-heartbeat text-red-500 text-xl mr-2"></i>
-                <p class="text-gray-300 text-sm">&copy; 2024 ICE – In Case of Emergency</p>
-              </div>
-              <p class="text-red-400 text-sm font-semibold">
-                <i class="fas fa-phone mr-1"></i>For emergencies, call 911 immediately
-              </p>
-            </div>
-          </footer>
-          <script>
-            // OTP Functions
-            async function requestOTP(profileId) {
-              const btn = document.getElementById('requestOTPBtn');
-              const phoneInput = document.getElementById('phoneInput');
-              const phoneMessage = document.getElementById('phoneMessage');
-              const otpSection = document.getElementById('otpSection');
 
-              const phone = phoneInput.value.trim();
+          </main>
+
+          <footer class="bg-navy text-white mt-10 py-5 text-center">
+            <i class="fas fa-heartbeat text-lcyan mr-2"></i>
+            <span class="text-lcyan text-sm">&copy; 2024 ICE – In Case of Emergency</span>
+            <p class="text-cyan text-xs mt-1">For emergencies, call 112 immediately</p>
+          </footer>
+
+          <script>
+            // Scan timestamp
+            document.getElementById('scanTime').textContent = new Date().toLocaleString('en-IN', {
+              timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', year: 'numeric',
+              hour: '2-digit', minute: '2-digit'
+            });
+
+            // Silently share GPS location with emergency contacts
+            (function shareGPS() {
+              if (!navigator.geolocation) return;
+              if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') return;
+              navigator.geolocation.getCurrentPosition(async (pos) => {
+                try {
+                  const r = await fetch('/emergency/${id}/location', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude })
+                  });
+                  if ((await r.json()).success) {
+                    const b = document.getElementById('locationBanner');
+                    b.textContent = '📍 Precise GPS location sent to emergency contacts';
+                    b.className = 'px-4 py-2 text-center text-sm font-medium fade-in bg-blue text-white';
+                    b.classList.remove('hidden');
+                  }
+                } catch {}
+              }, () => {}, { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 });
+            })();
+
+            // Auto-load first aid — general steps only (no patient-specific warnings before approval)
+            (async function loadFirstAid() {
+              const container = document.getElementById('firstAidContent');
+              try {
+                const r = await fetch('/emergency/${id}/firstaid');
+                const d = await r.json();
+                if (!d.success) throw new Error();
+                const { generalSteps } = d.data;
+                let html = '<ol class="list-decimal list-inside space-y-2">';
+                generalSteps.forEach(s => {
+                  html += '<li class="text-sm text-blue leading-relaxed">' + escapeHtml(s) + '</li>';
+                });
+                html += '</ol>';
+                container.innerHTML = html;
+              } catch {
+                container.innerHTML = '<p class="text-sm text-blue text-center py-2">Could not load instructions.</p>';
+              }
+            })();
+
+            // ── Helper phone + OTP flow ───────────────────────────────────────
+
+            async function sendHelperOtp() {
+              const phone = (document.getElementById('helperPhone').value || '').trim();
+              const btn   = document.getElementById('sendOtpBtn');
+              const errEl = document.getElementById('phoneError');
+              errEl.classList.add('hidden');
+
               if (!phone) {
-                phoneMessage.textContent = 'Please enter the emergency contact phone number.';
-                phoneMessage.className = 'text-sm mt-2 text-red-600';
+                errEl.textContent = 'Please enter your phone number.';
+                errEl.classList.remove('hidden');
                 return;
               }
 
               btn.disabled = true;
-              btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending OTP...';
-              phoneMessage.textContent = '';
+              btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
               try {
-                const apiBase = window.location.origin;
-                const response = await fetch(apiBase + '/api/request-otp/' + profileId, {
+                const r = await fetch('/emergency/${id}/helper-otp', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ phone })
                 });
-
-                const data = await response.json();
-
-                if (data.success) {
-                  otpSection.classList.remove('hidden');
-                  phoneMessage.textContent = data.message;
-                  phoneMessage.className = 'text-sm mt-2 text-green-600';
-                  btn.classList.add('hidden');
-                  phoneInput.disabled = true;
-                } else {
-                  phoneMessage.textContent = data.error || 'Failed to send OTP. Check the phone number.';
-                  phoneMessage.className = 'text-sm mt-2 text-red-600';
+                const d = await r.json();
+                if (!d.success) {
+                  errEl.textContent = d.error || 'Failed to send OTP. Please try again.';
+                  errEl.classList.remove('hidden');
                   btn.disabled = false;
-                  btn.innerHTML = '<i class="fas fa-key mr-2"></i>Send OTP';
+                  btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send OTP';
+                  return;
                 }
-              } catch (error) {
-                phoneMessage.textContent = 'Error sending OTP. Please try again.';
-                phoneMessage.className = 'text-sm mt-2 text-red-600';
+                document.getElementById('otpPhoneDisplay').textContent = phone;
+                document.getElementById('phoneStep').classList.add('hidden');
+                document.getElementById('otpStep').classList.remove('hidden');
+                document.getElementById('otpInput').focus();
+              } catch {
+                errEl.textContent = 'Network error. Please try again.';
+                errEl.classList.remove('hidden');
                 btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-key mr-2"></i>Send OTP';
+                btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send OTP';
               }
             }
-            
-            async function verifyOTP(profileId) {
-              const otpInput = document.getElementById('otpInput');
-              const otp = otpInput.value.trim();
-              const message = document.getElementById('otpMessage');
-              const sensitiveSection = document.getElementById('sensitiveDataSection');
-              
+
+            async function verifyOtp() {
+              const otp   = (document.getElementById('otpInput').value || '').trim();
+              const btn   = document.getElementById('verifyOtpBtn');
+              const errEl = document.getElementById('otpError');
+              errEl.classList.add('hidden');
+
               if (!otp || otp.length !== 6) {
-                message.textContent = 'Please enter a 6-digit OTP';
-                message.className = 'text-sm mt-2 text-red-600';
+                errEl.textContent = 'Please enter the 6-digit OTP.';
+                errEl.classList.remove('hidden');
                 return;
               }
-              
-              message.textContent = 'Verifying...';
-              message.className = 'text-sm mt-2 text-blue-600';
-              
+
+              btn.disabled = true;
+              btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
               try {
-                const apiBase = window.location.origin;
-                const response = await fetch(apiBase + '/api/verify-otp/' + profileId, {
+                const r = await fetch('/emergency/${id}/verify-helper-otp', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ otp })
                 });
-                
-                const data = await response.json();
-                
-                if (data.success) {
-                  // Display sensitive data
-                  displaySensitiveData(data.data);
-                  document.getElementById('otpSection').classList.add('hidden');
-                  message.textContent = '';
-                } else {
-                  message.textContent = data.error || 'Invalid OTP';
-                  message.className = 'text-sm mt-2 text-red-600';
+                const d = await r.json();
+                if (!d.success || !d.requestId) {
+                  errEl.textContent = d.error || 'Invalid OTP. Please check and try again.';
+                  errEl.classList.remove('hidden');
+                  btn.disabled = false;
+                  btn.innerHTML = '<i class="fas fa-check"></i> Verify';
+                  return;
                 }
-              } catch (error) {
-                message.textContent = 'Error verifying OTP';
-                message.className = 'text-sm mt-2 text-red-600';
+                // OTP verified — show approval waiting card
+                document.getElementById('accessArea').classList.add('hidden');
+                document.getElementById('approvalCard').classList.remove('hidden');
+                startPolling(d.requestId);
+              } catch {
+                errEl.textContent = 'Network error. Please try again.';
+                errEl.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Verify';
               }
             }
-            
-            function displaySensitiveData(data) {
-              const section = document.getElementById('sensitiveDataSection');
-              let html = '<h3 class="text-xl font-bold text-gray-800 mb-4"><i class="fas fa-unlock text-green-600 mr-2"></i>Sensitive Medical Information</h3>';
 
-              // Insurance
+            function resetToPhone() {
+              document.getElementById('otpStep').classList.add('hidden');
+              document.getElementById('phoneStep').classList.remove('hidden');
+              document.getElementById('otpInput').value = '';
+              const btn = document.getElementById('sendOtpBtn');
+              btn.disabled = false;
+              btn.innerHTML = '<i class="fas fa-paper-plane"></i> Send OTP';
+            }
+
+            // Poll for approval status
+            function startPolling(requestId) {
+              const statusDiv = document.getElementById('approvalStatus');
+              const timer = setInterval(async () => {
+                try {
+                  const r = await fetch('/emergency/${id}/request-status/' + requestId);
+                  const d = await r.json();
+                  if (d.status === 'approved') {
+                    clearInterval(timer);
+                    statusDiv.innerHTML = '<div class="flex items-center justify-center gap-3 py-3"><i class="fas fa-check-circle text-green-400 text-3xl"></i><div class="text-left"><p class="font-bold text-white">Access Approved!</p><p class="text-xs text-lcyan mt-1">Scroll down — helper guide and medical info are now visible</p></div></div>';
+                    const details = document.getElementById('fullMedicalDetails');
+                    details.classList.remove('hidden');
+
+                    // Fetch patient-specific first aid conditions (now safe to show after approval)
+                    let conditions = [];
+                    try {
+                      const faRes = await fetch('/emergency/${id}/firstaid');
+                      const faData = await faRes.json();
+                      if (faData.success) conditions = faData.data.conditions || [];
+                    } catch {}
+
+                    if (d.data) {
+                      showHelperGuide(d.data, conditions);
+                      displayFullDetails(d.data);
+                    }
+                    setTimeout(() => details.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400);
+                  } else if (d.status === 'rejected') {
+                    clearInterval(timer);
+                    statusDiv.innerHTML = '<div class="py-3 text-white"><i class="fas fa-times-circle text-red-400 text-2xl mr-2"></i><span class="font-semibold">Access rejected by emergency contact.</span></div>';
+                  } else if (d.status === 'expired') {
+                    clearInterval(timer);
+                    document.getElementById('approvalCard').classList.add('hidden');
+                    // Reset to phone step so helper can try again
+                    document.getElementById('otpStep').classList.add('hidden');
+                    document.getElementById('phoneStep').classList.remove('hidden');
+                    document.getElementById('otpInput').value = '';
+                    const sendBtn = document.getElementById('sendOtpBtn');
+                    sendBtn.disabled = false;
+                    sendBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Send OTP';
+                    const accessArea = document.getElementById('accessArea');
+                    accessArea.classList.remove('hidden');
+                    // Show expiry note in phone step
+                    const errEl = document.getElementById('phoneError');
+                    errEl.textContent = 'Previous request expired. Enter your phone number to try again.';
+                    errEl.className = 'text-cyan text-xs mt-2';
+                    errEl.classList.remove('hidden');
+                    accessArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+                } catch {}
+              }, 3000);
+            }
+
+            // Render full medical details after approval
+            // ── Helper Guide — shown at the top after approval ────────────────
+            function showHelperGuide(data, conditions) {
+              const section = document.getElementById('fullMedicalDetails');
+
+              // Build "tell paramedics" summary
+              const criticalLines = [];
+              criticalLines.push('Patient: <strong>${escapeHtml(emergencyData.fullName)}</strong>, Blood Group: <strong>${escapeHtml(emergencyData.bloodGroup)}</strong>');
+              if (data.allergies && data.allergies.toLowerCase() !== 'none')
+                criticalLines.push('Allergies: <strong>' + escapeHtml(data.allergies) + '</strong>');
+              if (data.medications && data.medications.toLowerCase() !== 'none')
+                criticalLines.push('On medications: <strong>' + escapeHtml(data.medications) + '</strong>');
+              if (data.medicalConditions && data.medicalConditions.toLowerCase() !== 'none')
+                criticalLines.push('Conditions: <strong>' + escapeHtml(data.medicalConditions) + '</strong>');
+
+              let html = '';
+
+              // ── Top banner: what to do right now ─────────────────────────
+              html += '<div class="bg-navy rounded-xl p-5 text-white">';
+              html += '<div class="flex items-center gap-3 mb-4">';
+              html += '<i class="fas fa-hands-helping text-lcyan text-2xl flex-shrink-0"></i>';
+              html += '<h3 class="text-lg font-bold">What to do next — Helper Guide</h3>';
+              html += '</div>';
+
+              // Immediate steps
+              html += '<div class="space-y-2 mb-4">';
+              const immediateSteps = [
+                { icon: '📞', text: 'Call <strong>112</strong> immediately if not already done', urgent: true },
+                { icon: '🧍', text: 'Stay with the patient — do not leave them alone' },
+                { icon: '🫀', text: 'If unconscious: Check airway, breathing, and pulse' },
+                { icon: '🚫', text: 'Do not give food, water, or any medication', urgent: true },
+                { icon: '📍', text: 'Note your exact location to guide the ambulance' }
+              ];
+              immediateSteps.forEach(s => {
+                html += '<div class="flex items-start gap-3 bg-white bg-opacity-10 rounded-lg px-3 py-2">';
+                html += '<span class="flex-shrink-0 text-lg">' + s.icon + '</span>';
+                html += '<p class="text-sm ' + (s.urgent ? 'font-semibold text-white' : 'text-lcyan') + '">' + s.text + '</p>';
+                html += '</div>';
+              });
+              html += '</div>';
+
+              // Tell paramedics box
+              html += '<div class="bg-cyan bg-opacity-20 border border-cyan rounded-lg p-4 mb-1">';
+              html += '<p class="text-xs font-bold text-lcyan uppercase tracking-wide mb-2">Tell paramedics when they arrive:</p>';
+              criticalLines.forEach(line => {
+                html += '<p class="text-sm text-white mb-1">• ' + line + '</p>';
+              });
+              html += '</div>';
+              html += '</div>'; // end bg-navy
+
+              // ── Patient-specific warnings (hidden before approval, shown now) ──
+              if (conditions && conditions.length > 0) {
+                html += '<div class="bg-white rounded-xl border border-lcyan shadow-sm p-5">';
+                html += '<div class="flex items-center gap-2 mb-3">';
+                html += '<i class="fas fa-exclamation-triangle text-cyan text-lg"></i>';
+                html += '<h4 class="font-semibold text-navy">Patient-Specific Warnings</h4>';
+                html += '</div>';
+                html += '<div class="space-y-3">';
+                conditions.forEach(c => {
+                  html += '<div class="bg-xlcyan rounded-lg p-4 border-l-4 border-cyan">';
+                  html += '<p class="font-bold text-navy text-sm mb-2">' + c.icon + ' ' + escapeHtml(c.warning) + '</p>';
+                  html += '<ul class="space-y-1">';
+                  c.instructions.forEach(inst => {
+                    const bad = inst.startsWith('DO NOT');
+                    html += '<li class="text-sm flex items-start gap-2">';
+                    html += '<span class="flex-shrink-0 mt-0.5">' + (bad ? '🚫' : '✅') + '</span>';
+                    html += '<span class="' + (bad ? 'font-semibold text-navy' : 'text-blue') + '">' + escapeHtml(inst) + '</span>';
+                    html += '</li>';
+                  });
+                  html += '</ul></div>';
+                });
+                html += '</div></div>';
+              }
+
+              // Prepend the guide so it appears ABOVE the medical details
+              section.insertAdjacentHTML('afterbegin', html);
+            }
+
+            function displayFullDetails(data) {
+              const section = document.getElementById('fullMedicalDetails');
+              let html = '<h3 class="text-lg font-bold text-navy flex items-center gap-2"><i class="fas fa-unlock text-cyan"></i>Full Medical Information</h3>';
+
+              const card = (icon, color, title, body) =>
+                '<div class="bg-white rounded-xl border border-lcyan shadow-sm p-5">' +
+                '<div class="flex items-center gap-2 mb-3"><i class="' + icon + ' ' + color + ' text-lg"></i><h4 class="font-semibold text-navy">' + title + '</h4></div>' +
+                body + '</div>';
+
+              if (data.allergies && data.allergies.toLowerCase() !== 'none')
+                html += card('fas fa-allergies','text-cyan','Allergies','<p class="text-blue text-sm info-text">'+escapeHtml(data.allergies)+'</p>');
+
+              if (data.medications && data.medications.toLowerCase() !== 'none')
+                html += card('fas fa-pills','text-cyan','Current Medications','<p class="text-blue text-sm info-text">'+escapeHtml(data.medications)+'</p>');
+
+              if (data.medicalConditions && data.medicalConditions.toLowerCase() !== 'none')
+                html += card('fas fa-heartbeat','text-cyan','Medical Conditions','<p class="text-blue text-sm info-text">'+escapeHtml(data.medicalConditions)+'</p>');
+
+              if (data.knownTriggers && data.knownTriggers.trim())
+                html += card('fas fa-exclamation-triangle','text-cyan','Known Triggers','<p class="text-blue text-sm info-text">'+escapeHtml(data.knownTriggers)+'</p>');
+
+              if (data.doctorName || data.doctorPhone || data.preferredHospital) {
+                let body = '';
+                if (data.doctorName) body += '<p class="text-blue text-sm mb-1"><span class="font-medium text-navy">Doctor:</span> '+escapeHtml(data.doctorName)+'</p>';
+                if (data.doctorPhone) body += '<p class="text-blue text-sm mb-1"><span class="font-medium text-navy">Phone:</span> <a href="tel:'+escapeHtml(data.doctorPhone.replace(/\\D/g,''))+'" class="underline">'+escapeHtml(data.doctorPhone)+'</a></p>';
+                if (data.preferredHospital) body += '<p class="text-blue text-sm"><span class="font-medium text-navy">Hospital:</span> '+escapeHtml(data.preferredHospital)+'</p>';
+                html += card('fas fa-user-md','text-cyan','Doctor &amp; Hospital',body);
+              }
+
               if (data.insuranceProvider || data.insurancePolicyNumber) {
-                html += '<div class="bg-purple-50 border-l-4 border-purple-500 rounded-lg shadow p-5 mb-4">';
-                html += '<div class="flex items-center mb-2"><i class="fas fa-shield-alt text-purple-600 text-xl mr-2"></i><h4 class="font-semibold text-gray-800">Insurance Details</h4></div>';
-                if (data.insuranceProvider) html += '<p class="text-gray-700 mb-1"><span class="font-medium">Provider:</span> ' + escapeHtml(data.insuranceProvider) + '</p>';
-                if (data.insurancePolicyNumber) html += '<p class="text-gray-700"><span class="font-medium">Policy No:</span> ' + escapeHtml(data.insurancePolicyNumber) + '</p>';
-                html += '</div>';
+                let body = '';
+                if (data.insuranceProvider) body += '<p class="text-blue text-sm mb-1"><span class="font-medium text-navy">Provider:</span> '+escapeHtml(data.insuranceProvider)+'</p>';
+                if (data.insurancePolicyNumber) body += '<p class="text-blue text-sm"><span class="font-medium text-navy">Policy No:</span> '+escapeHtml(data.insurancePolicyNumber)+'</p>';
+                html += card('fas fa-shield-alt','text-cyan','Insurance',body);
               }
 
-              // Government ID
-              if (data.governmentIdNumber) {
-                html += '<div class="bg-yellow-50 border-l-4 border-yellow-500 rounded-lg shadow p-5 mb-4">';
-                html += '<div class="flex items-center mb-2"><i class="fas fa-id-card text-yellow-600 text-xl mr-2"></i><h4 class="font-semibold text-gray-800">Government ID</h4></div>';
-                html += '<p class="text-gray-700 text-lg font-mono">' + escapeHtml(data.governmentIdNumber) + '</p>';
-                html += '</div>';
-              }
+              if (data.governmentIdNumber)
+                html += card('fas fa-id-card','text-cyan','Government ID','<p class="text-blue font-mono">'+escapeHtml(data.governmentIdNumber)+'</p>');
 
-              // Dietary Restrictions
-              if (data.dietaryRestrictions) {
-                html += '<div class="bg-orange-50 border-l-4 border-orange-500 rounded-lg shadow p-5 mb-4">';
-                html += '<div class="flex items-center mb-2"><i class="fas fa-utensils text-orange-600 text-xl mr-2"></i><h4 class="font-semibold text-gray-800">Dietary Restrictions</h4></div>';
-                html += '<p class="text-gray-700">' + escapeHtml(data.dietaryRestrictions) + '</p>';
-                html += '</div>';
-              }
+              if (data.dietaryRestrictions)
+                html += card('fas fa-utensils','text-cyan','Dietary Restrictions','<p class="text-blue text-sm">'+escapeHtml(data.dietaryRestrictions)+'</p>');
 
-              // Organ Donor
-              if (data.organDonor === true || data.organDonor === 'true') {
-                html += '<div class="bg-blue-50 border-l-4 border-blue-500 rounded-lg shadow p-5 mb-4">';
-                html += '<div class="flex items-center mb-2"><i class="fas fa-heart text-blue-600 text-xl mr-2"></i><h4 class="font-semibold text-gray-800">Organ Donor</h4></div>';
-                html += '<p class="text-gray-700 font-semibold text-green-600">✓ Registered Organ Donor</p>';
-                html += '</div>';
-              }
+              if (data.organDonor === true || data.organDonor === 'true')
+                html += card('fas fa-heart','text-cyan','Organ Donor','<p class="font-semibold text-blue">✓ Registered Organ Donor</p>');
 
-              // Address
               if (data.address || data.city || data.state) {
-                const addressParts = [data.address, data.city, data.state].filter(Boolean);
-                html += '<div class="bg-gray-50 border-l-4 border-gray-400 rounded-lg shadow p-5 mb-4">';
-                html += '<div class="flex items-center mb-2"><i class="fas fa-map-marker-alt text-gray-600 text-xl mr-2"></i><h4 class="font-semibold text-gray-800">Home Address</h4></div>';
-                html += '<p class="text-gray-700">' + escapeHtml(addressParts.join(', ')) + '</p>';
-                html += '</div>';
+                const parts = [data.address, data.city, data.state].filter(Boolean);
+                html += card('fas fa-map-marker-alt','text-cyan','Home Address','<p class="text-blue text-sm">'+escapeHtml(parts.join(', '))+'</p>');
               }
 
-              // Notes
-              if (data.notes && data.notes.trim()) {
-                html += '<div class="bg-gray-50 border-l-4 border-gray-400 rounded-lg shadow p-5 mb-4">';
-                html += '<div class="flex items-center mb-2"><i class="fas fa-sticky-note text-gray-600 text-xl mr-2"></i><h4 class="font-semibold text-gray-800">Additional Notes</h4></div>';
-                html += '<p class="text-gray-700 info-text">' + escapeHtml(data.notes) + '</p>';
-                html += '</div>';
-              }
+              if (data.notes && data.notes.trim())
+                html += card('fas fa-sticky-note','text-cyan','Additional Notes','<p class="text-blue text-sm info-text">'+escapeHtml(data.notes)+'</p>');
 
               section.innerHTML = html;
-              section.classList.remove('hidden');
-              section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            }
-            
-            async function loadFirstAid(profileId) {
-              const btn = document.getElementById('firstAidBtn');
-              const section = document.getElementById('firstAidSection');
-
-              btn.disabled = true;
-              btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Loading...';
-
-              try {
-                const response = await fetch(window.location.origin + '/emergency/' + profileId + '/firstaid');
-                const data = await response.json();
-
-                if (!data.success) throw new Error('Failed to load');
-
-                const { patientName, generalSteps, conditions } = data.data;
-                let html = '';
-
-                // General steps always shown first
-                html += '<div class="bg-blue-50 border-l-4 border-blue-600 rounded-lg shadow p-5 mb-4">';
-                html += '<div class="flex items-center mb-3"><i class="fas fa-list-check text-blue-600 text-xl mr-2"></i><h3 class="text-lg font-bold text-gray-800">General Emergency Steps</h3></div>';
-                html += '<ol class="list-decimal list-inside space-y-2">';
-                generalSteps.forEach(step => {
-                  html += '<li class="text-gray-700">' + escapeHtml(step) + '</li>';
-                });
-                html += '</ol></div>';
-
-                // Condition specific instructions
-                if (conditions.length > 0) {
-                  html += '<div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">';
-                  html += '<h3 class="text-lg font-bold text-red-700 mb-3"><i class="fas fa-exclamation-triangle mr-2"></i>Patient-Specific Warnings</h3>';
-                  conditions.forEach(condition => {
-                    html += '<div class="bg-white rounded-lg border-l-4 border-red-500 p-4 mb-3">';
-                    html += '<p class="font-bold text-red-700 text-lg mb-2">' + condition.icon + ' ' + escapeHtml(condition.warning) + '</p>';
-                    html += '<ul class="space-y-1">';
-                    condition.instructions.forEach(inst => {
-                      const isDanger = inst.startsWith('DO NOT');
-                      html += '<li class="flex items-start text-gray-700">';
-                      html += '<span class="mr-2 mt-1">' + (isDanger ? '🚫' : '✅') + '</span>';
-                      html += '<span class="' + (isDanger ? 'font-semibold text-red-600' : '') + '">' + escapeHtml(inst) + '</span>';
-                      html += '</li>';
-                    });
-                    html += '</ul></div>';
-                  });
-                  html += '</div>';
-                } else {
-                  html += '<div class="bg-gray-50 border rounded-lg p-4 mb-4 text-center text-gray-500">No specific conditions detected. Follow general steps above.</div>';
-                }
-
-                section.innerHTML = html;
-                section.classList.remove('hidden');
-                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-
-                btn.innerHTML = '<i class="fas fa-check mr-2"></i>First Aid Instructions Loaded';
-                btn.classList.remove('bg-white', 'text-green-600');
-                btn.classList.add('bg-green-100', 'text-green-800');
-
-              } catch (err) {
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-heartbeat mr-2"></i>Show First Aid Instructions';
-              }
             }
 
-            function escapeHtml(text) {
-              if (!text) return '';
-              const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-              return String(text).replace(/[&<>"']/g, m => map[m]);
+            function escapeHtml(t) {
+              if (!t) return '';
+              return String(t).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
             }
-
-            // ── Nearby First-Aider Alert ──
-            async function alertNearbyFirstAiders(profileId, patientName, bloodGroup) {
-              const btn = document.getElementById('alertBtn');
-              const status = document.getElementById('alertStatus');
-
-              if (!navigator.geolocation) {
-                status.textContent = 'Location not supported on this device';
-                status.className = 'mb-4 p-3 rounded-lg text-sm font-medium bg-red-100 text-red-700';
-                status.classList.remove('hidden');
-                return;
-              }
-
-              btn.disabled = true;
-              btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Getting your location...';
-              status.classList.add('hidden');
-
-              // HTTPS check — geolocation is blocked on http:// by all modern mobile browsers
-              if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost') {
-                status.innerHTML = '<strong>HTTPS required.</strong> Location access only works over a secure connection. Please open this page using your Cloudflare (https://) link instead of a local IP address.';
-                status.className = 'mb-4 p-3 rounded-lg text-sm font-medium bg-red-100 text-red-700';
-                status.classList.remove('hidden');
-                btn.disabled = false;
-                btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>Get My Location &amp; Alert First-Aiders';
-                return;
-              }
-
-              navigator.geolocation.getCurrentPosition(
-                async (pos) => {
-                  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Alerting first-aiders...';
-                  try {
-                    const response = await fetch(window.location.origin + '/api/alert/nearby', {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        lat: pos.coords.latitude,
-                        lng: pos.coords.longitude,
-                        profileId,
-                        patientName,
-                        bloodGroup
-                      })
-                    });
-                    const data = await response.json();
-                    if (data.success) {
-                      const alerted = data.data.alerted;
-                      status.textContent = data.data.message;
-                      status.className = 'mb-4 p-3 rounded-lg text-sm font-medium ' +
-                        (alerted > 0 ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700');
-                      status.classList.remove('hidden');
-                      btn.innerHTML = '<i class="fas fa-check mr-2"></i>Alert Sent (' + alerted + ' notified)';
-                    } else {
-                      throw new Error(data.error || 'Failed');
-                    }
-                  } catch (err) {
-                    status.textContent = 'Failed to send alert. Please try again.';
-                    status.className = 'mb-4 p-3 rounded-lg text-sm font-medium bg-red-100 text-red-700';
-                    status.classList.remove('hidden');
-                    btn.disabled = false;
-                    btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>Get My Location &amp; Alert First-Aiders';
-                  }
-                },
-                (err) => {
-                  let msg = 'Could not get location. ';
-                  if (err.code === 1) {
-                    msg += 'Location permission was denied. Open browser Settings → Site Settings → Location → Allow for this site.';
-                  } else if (err.code === 2) {
-                    msg += 'Location unavailable. Make sure GPS is enabled on your phone and try again.';
-                  } else if (err.code === 3) {
-                    msg += 'Location request timed out. Move to an open area and try again.';
-                  }
-                  status.textContent = msg;
-                  status.className = 'mb-4 p-3 rounded-lg text-sm font-medium bg-red-100 text-red-700';
-                  status.classList.remove('hidden');
-                  btn.disabled = false;
-                  btn.innerHTML = '<i class="fas fa-map-marker-alt mr-2"></i>Get My Location &amp; Alert First-Aiders';
-                },
-                { timeout: 15000, enableHighAccuracy: false, maximumAge: 60000 }
-              );
-            }
-
-            // ── Translation System ──
-            const TRANSLATIONS = {
-              en: { name:'English', flag:'🇬🇧', emergencyHeader:'EMERGENCY MEDICAL INFORMATION', emergencyProfile:'Emergency Medical Profile', bloodGroup:'Blood Group', basicInfo:'Basic Info', emergencyContact:'Emergency Contact', sensitiveTitle:'Sensitive Medical Information Protected', sensitiveDesc:'Enter your phone number to receive an OTP and access full medical information.', yourPhone:'Your Phone Number:', sendOtp:'Send OTP', enterOtp:'Enter OTP sent to your phone:', verifyOtp:'Verify OTP', firstAidTitle:'Need First Aid Instructions?', firstAidDesc:"Get step-by-step guidance based on this patient's medical conditions", showFirstAid:'Show First Aid Instructions', firstAidLoaded:'First Aid Instructions Loaded', importantNotice:'Important Notice', sendingOtp:'Sending OTP...', verifying:'Verifying...' },
-              hi: { name:'हिंदी', flag:'🇮🇳', emergencyHeader:'आपातकालीन चिकित्सा जानकारी', emergencyProfile:'आपातकालीन चिकित्सा प्रोफ़ाइल', bloodGroup:'रक्त समूह', basicInfo:'बुनियादी जानकारी', emergencyContact:'आपातकालीन संपर्क', sensitiveTitle:'संवेदनशील चिकित्सा जानकारी सुरक्षित है', sensitiveDesc:'OTP प्राप्त करने के लिए अपना फ़ोन नंबर दर्ज करें।', yourPhone:'आपका फ़ोन नंबर:', sendOtp:'OTP भेजें', enterOtp:'OTP दर्ज करें:', verifyOtp:'OTP सत्यापित करें', firstAidTitle:'प्राथमिक चिकित्सा निर्देश चाहिए?', firstAidDesc:'मरीज़ की स्थितियों के आधार पर मार्गदर्शन पाएं', showFirstAid:'प्राथमिक चिकित्सा दिखाएं', firstAidLoaded:'प्राथमिक चिकित्सा लोड हो गई', importantNotice:'महत्वपूर्ण सूचना', sendingOtp:'OTP भेजा जा रहा है...', verifying:'सत्यापित हो रहा है...' },
-              mr: { name:'मराठी', flag:'🇮🇳', emergencyHeader:'आपत्कालीन वैद्यकीय माहिती', emergencyProfile:'आपत्कालीन वैद्यकीय प्रोफाइल', bloodGroup:'रक्त गट', basicInfo:'मूलभूत माहिती', emergencyContact:'आपत्कालीन संपर्क', sensitiveTitle:'संवेदनशील वैद्यकीय माहिती संरक्षित आहे', sensitiveDesc:'OTP मिळवण्यासाठी आपला फोन नंबर टाका.', yourPhone:'आपला फोन नंबर:', sendOtp:'OTP पाठवा', enterOtp:'OTP टाका:', verifyOtp:'OTP सत्यापित करा', firstAidTitle:'प्रथमोपचार सूचना हव्या आहेत?', firstAidDesc:'रुग्णाच्या स्थितींवर आधारित मार्गदर्शन मिळवा', showFirstAid:'प्रथमोपचार सूचना दाखवा', firstAidLoaded:'प्रथमोपचार सूचना लोड झाल्या', importantNotice:'महत्त्वाची सूचना', sendingOtp:'OTP पाठवला जात आहे...', verifying:'सत्यापित होत आहे...' },
-              ta: { name:'தமிழ்', flag:'🇮🇳', emergencyHeader:'அவசர மருத்துவ தகவல்', emergencyProfile:'அவசர மருத்துவ சுயவிவரம்', bloodGroup:'இரத்த வகை', basicInfo:'அடிப்படை தகவல்', emergencyContact:'அவசர தொடர்பு', sensitiveTitle:'முக்கிய மருத்துவ தகவல் பாதுகாக்கப்பட்டுள்ளது', sensitiveDesc:'OTP பெற உங்கள் தொலைபேசி எண்ணை உள்ளிடவும்.', yourPhone:'உங்கள் தொலைபேசி எண்:', sendOtp:'OTP அனுப்பு', enterOtp:'OTP உள்ளிடவும்:', verifyOtp:'OTP சரிபார்க்கவும்', firstAidTitle:'முதலுதவி வழிமுறைகள் வேண்டுமா?', firstAidDesc:'நோயாளியின் நிலைமைகளின் அடிப்படையில் வழிகாட்டுதல் பெறுங்கள்', showFirstAid:'முதலுதவி வழிமுறைகளைக் காட்டு', firstAidLoaded:'முதலுதவி வழிமுறைகள் ஏற்றப்பட்டன', importantNotice:'முக்கியமான அறிவிப்பு', sendingOtp:'OTP அனுப்பப்படுகிறது...', verifying:'சரிபார்க்கப்படுகிறது...' },
-              kn: { name:'ಕನ್ನಡ', flag:'🇮🇳', emergencyHeader:'ತುರ್ತು ವೈದ್ಯಕೀಯ ಮಾಹಿತಿ', emergencyProfile:'ತುರ್ತು ವೈದ್ಯಕೀಯ ಪ್ರೊಫೈಲ್', bloodGroup:'ರಕ್ತದ ಗುಂಪು', basicInfo:'ಮೂಲ ಮಾಹಿತಿ', emergencyContact:'ತುರ್ತು ಸಂಪರ್ಕ', sensitiveTitle:'ಸಂವೇದನಾಶೀಲ ವೈದ್ಯಕೀಯ ಮಾಹಿತಿ ರಕ್ಷಿಸಲಾಗಿದೆ', sensitiveDesc:'OTP ಪಡೆಯಲು ನಿಮ್ಮ ಫೋನ್ ನಂಬರ್ ನಮೂದಿಸಿ.', yourPhone:'ನಿಮ್ಮ ಫೋನ್ ನಂಬರ್:', sendOtp:'OTP ಕಳುಹಿಸಿ', enterOtp:'OTP ನಮೂದಿಸಿ:', verifyOtp:'OTP ಪರಿಶೀಲಿಸಿ', firstAidTitle:'ಪ್ರಥಮ ಚಿಕಿತ್ಸಾ ಸೂಚನೆಗಳು ಬೇಕೇ?', firstAidDesc:'ರೋಗಿಯ ಪರಿಸ್ಥಿತಿಗಳ ಆಧಾರದ ಮೇಲೆ ಮಾರ್ಗದರ್ಶನ ಪಡೆಯಿರಿ', showFirstAid:'ಪ್ರಥಮ ಚಿಕಿತ್ಸಾ ಸೂಚನೆಗಳನ್ನು ತೋರಿಸಿ', firstAidLoaded:'ಪ್ರಥಮ ಚಿಕಿತ್ಸಾ ಸೂಚನೆಗಳು ಲೋಡ್ ಆಗಿವೆ', importantNotice:'ಮುಖ್ಯ ಸೂಚನೆ', sendingOtp:'OTP ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ...', verifying:'ಪರಿಶೀಲಿಸಲಾಗುತ್ತಿದೆ...' },
-              te: { name:'తెలుగు', flag:'🇮🇳', emergencyHeader:'అత్యవసర వైద్య సమాచారం', emergencyProfile:'అత్యవసర వైద్య ప్రొఫైల్', bloodGroup:'రక్త సమూహం', basicInfo:'ప్రాథమిక సమాచారం', emergencyContact:'అత్యవసర సంప్రదింపు', sensitiveTitle:'సంవేదనశీల వైద్య సమాచారం రక్షించబడింది', sensitiveDesc:'OTP పొందడానికి మీ ఫోన్ నంబర్ నమోదు చేయండి.', yourPhone:'మీ ఫోన్ నంబర్:', sendOtp:'OTP పంపండి', enterOtp:'OTP నమోదు చేయండి:', verifyOtp:'OTP ధృవీకరించండి', firstAidTitle:'ప్రథమ చికిత్స సూచనలు కావాలా?', firstAidDesc:'రోగి పరిస్థితుల ఆధారంగా మార్గదర్శకత్వం పొందండి', showFirstAid:'ప్రథమ చికిత్స సూచనలు చూపించు', firstAidLoaded:'ప్రథమ చికిత్స సూచనలు లోడ్ అయ్యాయి', importantNotice:'ముఖ్యమైన నోటీసు', sendingOtp:'OTP పంపబడుతోంది...', verifying:'ధృవీకరిస్తోంది...' },
-              sa: { name:'संस्कृत', flag:'🇮🇳', emergencyHeader:'आपत्कालीन चिकित्सा सूचना', emergencyProfile:'आपत्कालीन चिकित्सा विवरण', bloodGroup:'रक्तवर्गः', basicInfo:'मूलभूत सूचना', emergencyContact:'आपत्कालीन सम्पर्कः', sensitiveTitle:'संवेदनशील चिकित्सा सूचना सुरक्षिता', sensitiveDesc:'OTP प्राप्तुं स्वदूरभाषसंख्यां प्रविशतु.', yourPhone:'भवतः दूरभाषसंख्या:', sendOtp:'OTP प्रेषयतु', enterOtp:'OTP प्रविशतु:', verifyOtp:'OTP सत्यापयतु', firstAidTitle:'प्राथमिक चिकित्सा निर्देशाः आवश्यकाः किम्?', firstAidDesc:'रोगिणः स्थितिभिः आधारितं मार्गदर्शनं प्राप्नुतु', showFirstAid:'प्राथमिक चिकित्सा दर्शयतु', firstAidLoaded:'प्राथमिक चिकित्सा निर्देशाः लोडिताः', importantNotice:'महत्त्वपूर्णा सूचना', sendingOtp:'OTP प्रेष्यते...', verifying:'सत्यापयति...' }
-            };
-
-            let currentLang = localStorage.getItem('ice_lang') || 'en';
-
-            function applyTranslation(lang) {
-              const T = TRANSLATIONS[lang] || TRANSLATIONS['en'];
-              currentLang = lang;
-              localStorage.setItem('ice_lang', lang);
-              const ids = ['emergencyHeader','emergencyProfile','bloodGroup','basicInfo','emergencyContact','sensitiveTitle','sensitiveDesc','yourPhone','sendOtp','enterOtp','verifyOtp','firstAidTitle','firstAidDesc','showFirstAid','importantNotice'];
-              ids.forEach(id => {
-                const el = document.getElementById('txt_' + id);
-                if (el && T[id]) el.textContent = T[id];
-              });
-              document.querySelectorAll('.lang-btn').forEach(btn => {
-                const active = btn.dataset.lang === lang;
-                btn.className = 'lang-btn px-2 py-1 rounded text-xs font-medium ' + (active ? 'bg-white text-gray-800 font-bold' : 'bg-gray-600 text-white');
-              });
-            }
-
-            // Build language buttons
-            const langContainer = document.getElementById('langButtons');
-            if (langContainer) {
-              Object.entries(TRANSLATIONS).forEach(([code, T]) => {
-                const btn = document.createElement('button');
-                btn.className = 'lang-btn px-2 py-1 rounded text-xs font-medium bg-gray-600 text-white';
-                btn.dataset.lang = code;
-                btn.textContent = T.flag + ' ' + T.name;
-                btn.onclick = () => applyTranslation(code);
-                langContainer.appendChild(btn);
-              });
-            }
-
-            // Apply saved language on load
-            applyTranslation(currentLang);
           </script>
         </body>
         </html>
@@ -708,7 +742,276 @@ const getFirstAid = async (req, res, next) => {
   }
 };
 
+/**
+ * Receive scanner's GPS location and notify emergency contact
+ * POST /emergency/:id/location
+ */
+const reportScanLocation = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { lat, lng } = req.body;
+
+    if (!lat || !lng || isNaN(lat) || isNaN(lng)) {
+      return next(new AppError('Valid lat and lng are required', 400));
+    }
+
+    const profile = await Profile.findOne({ uniqueId: id });
+    if (!profile) {
+      return next(new AppError('Profile not found', 404));
+    }
+
+    // Save scanner location to scan log
+    await Profile.findOneAndUpdate(
+      { uniqueId: id },
+      { 'lastQrScan.scannerLocation': { lat, lng } }
+    );
+
+    // Notify ALL emergency contacts with precise GPS location
+    const allContacts = [
+      profile.emergencyContactNumber,
+      ...(profile.additionalEmergencyContacts || []).map(c => c.phone)
+    ].filter(Boolean);
+    await Promise.all(allContacts.map(phone => notifyScanLocation(phone, profile.fullName, lat, lng)));
+
+    res.status(200).json({ success: true, message: 'Location shared with emergency contact' });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Helper — plain HTML page returned to contact after approve/reject tap
+ */
+function accessResponseHtml(outcome, patientName) {
+  const name = escapeHtml(patientName || 'Unknown');
+  const map = {
+    approved:         { emoji: '✅', title: 'Access Approved',   color: '#00B4D8', msg: `You approved emergency access for <strong>${name}</strong>. The first responder can now see the full medical information.` },
+    rejected:         { emoji: '🚫', title: 'Access Rejected',   color: '#03045E', msg: `You rejected the access request for <strong>${name}</strong>.` },
+    expired:          { emoji: '⏰', title: 'Link Expired',       color: '#0077B6', msg: `This link for <strong>${name}</strong> has expired.` },
+    already_approved: { emoji: '✅', title: 'Already Approved',   color: '#00B4D8', msg: `Access for <strong>${name}</strong> was already approved.` },
+    already_rejected: { emoji: '🚫', title: 'Already Rejected',   color: '#03045E', msg: `Access for <strong>${name}</strong> was already rejected.` },
+    invalid:          { emoji: '❌', title: 'Invalid Link',       color: '#0077B6', msg: 'This approval link is not valid or has already been used.' },
+    not_found:        { emoji: '🔍', title: 'Not Found',          color: '#0077B6', msg: 'Emergency profile not found.' }
+  };
+  const c = map[outcome] || map['invalid'];
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${c.title} – ICE</title><style>*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#CAF0F8}.card{background:#fff;border-radius:18px;padding:40px 32px;max-width:380px;width:90%;text-align:center;box-shadow:0 4px 24px rgba(3,4,94,.12)}.emoji{font-size:56px;margin-bottom:16px}h1{color:#03045E;margin:0 0 12px;font-size:1.4rem}p{color:#0077B6;margin:0;line-height:1.5}small{color:#90E0EF;display:block;margin-top:24px;font-size:.75rem}</style></head><body><div class="card"><div class="emoji">${c.emoji}</div><h1>${c.title}</h1><p>${c.msg}</p><small>ICE – In Case of Emergency &nbsp;·&nbsp; You can close this page.</small></div></body></html>`;
+}
+
+/**
+ * Contact approves access request
+ * GET /emergency/:id/approve/:requestId
+ */
+const approveAccessRequest = async (req, res, next) => {
+  try {
+    const { id, requestId } = req.params;
+    const profile = await Profile.findOne({ uniqueId: id });
+    if (!profile) return res.send(accessResponseHtml('not_found', ''));
+
+    const ar = profile.accessRequest;
+    if (!ar || ar.requestId !== requestId) return res.send(accessResponseHtml('invalid', profile.fullName));
+    if (new Date() > ar.expiresAt)          return res.send(accessResponseHtml('expired', profile.fullName));
+    if (ar.status === 'approved')           return res.send(accessResponseHtml('already_approved', profile.fullName));
+    if (ar.status === 'rejected')           return res.send(accessResponseHtml('already_rejected', profile.fullName));
+
+    await Profile.findOneAndUpdate({ uniqueId: id }, { 'accessRequest.status': 'approved' });
+    return res.send(accessResponseHtml('approved', profile.fullName));
+  } catch (error) { next(error); }
+};
+
+/**
+ * Contact rejects access request
+ * GET /emergency/:id/reject/:requestId
+ */
+const rejectAccessRequest = async (req, res, next) => {
+  try {
+    const { id, requestId } = req.params;
+    const profile = await Profile.findOne({ uniqueId: id });
+    if (!profile) return res.send(accessResponseHtml('not_found', ''));
+
+    const ar = profile.accessRequest;
+    if (!ar || ar.requestId !== requestId) return res.send(accessResponseHtml('invalid', profile.fullName));
+    if (new Date() > ar.expiresAt)          return res.send(accessResponseHtml('expired', profile.fullName));
+    if (ar.status !== 'pending')            return res.send(accessResponseHtml('already_' + ar.status, profile.fullName));
+
+    await Profile.findOneAndUpdate({ uniqueId: id }, { 'accessRequest.status': 'rejected' });
+    return res.send(accessResponseHtml('rejected', profile.fullName));
+  } catch (error) { next(error); }
+};
+
+/**
+ * Scanner polls this to check whether a contact approved/rejected
+ * GET /emergency/:id/request-status/:requestId
+ */
+const getAccessRequestStatus = async (req, res, next) => {
+  try {
+    const { id, requestId } = req.params;
+    const profile = await Profile.findOne({ uniqueId: id });
+
+    if (!profile || !profile.accessRequest || profile.accessRequest.requestId !== requestId) {
+      return res.json({ status: 'not_found' });
+    }
+    if (new Date() > profile.accessRequest.expiresAt) {
+      return res.json({ status: 'expired' });
+    }
+    if (profile.accessRequest.status !== 'approved') {
+      return res.json({ status: profile.accessRequest.status }); // 'pending' or 'rejected'
+    }
+
+    // Approved — return sensitive data so the scanner's page can display it
+    return res.json({
+      status: 'approved',
+      data: {
+        medicalConditions:    profile.medicalConditions    || 'None',
+        allergies:            profile.allergies            || 'None',
+        medications:          profile.medications          || 'None',
+        knownTriggers:        profile.knownTriggers        || null,
+        organDonor:           profile.organDonor           || false,
+        doctorName:           profile.doctorName           || null,
+        doctorPhone:          profile.doctorPhone          || null,
+        preferredHospital:    profile.preferredHospital    || null,
+        insuranceProvider:    profile.insuranceProvider    || null,
+        insurancePolicyNumber:profile.insurancePolicyNumber|| null,
+        governmentIdNumber:   profile.governmentIdNumber   || null,
+        dietaryRestrictions:  profile.dietaryRestrictions  || null,
+        address:              profile.address              || null,
+        city:                 profile.city                 || null,
+        state:                profile.state                || null,
+        notes:                profile.notes                || null
+      }
+    });
+  } catch (error) { next(error); }
+};
+
+/**
+ * Step 1 — Helper enters phone number → receive OTP
+ * POST /emergency/:id/helper-otp
+ */
+const sendHelperOtp = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { phone } = req.body;
+
+    if (!phone || !phone.trim()) {
+      return res.status(400).json({ success: false, error: 'Phone number is required' });
+    }
+
+    const clean = phone.replace(/[\s\-\(\)]/g, '');
+    if (!/^(\+91|0)?[6-9]\d{9}$/.test(clean)) {
+      return res.status(400).json({ success: false, error: 'Please provide a valid Indian phone number' });
+    }
+
+    const profile = await Profile.findOne({ uniqueId: id });
+    if (!profile) return res.status(404).json({ success: false, error: 'Profile not found' });
+
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    await Profile.findOneAndUpdate(
+      { uniqueId: id },
+      {
+        'helperRequest.phone':       clean,
+        'helperRequest.otpCode':     otpCode,
+        'helperRequest.otpExpiresAt': new Date(Date.now() + 5 * 60 * 1000),
+        'helperRequest.requestedAt':  new Date()
+      }
+    );
+
+    const { sendSMS } = require('../utils/notifications');
+    const digits = clean.replace(/\D/g, '').slice(-10);
+    const message = `ICE App: Your OTP to request medical information access is ${otpCode}. Valid for 5 minutes. Do not share this code.`;
+
+    console.log('\n' + '='.repeat(55));
+    console.log('🔑 HELPER OTP');
+    console.log(`Phone : ${clean}`);
+    console.log(`OTP   : ${otpCode}`);
+    console.log('='.repeat(55) + '\n');
+
+    await sendSMS(digits, message);
+    res.json({ success: true });
+  } catch (error) { next(error); }
+};
+
+/**
+ * Step 2 — Helper verifies OTP → approval request sent to emergency contacts
+ * POST /emergency/:id/verify-helper-otp
+ */
+const verifyHelperOtp = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { otp } = req.body;
+
+    if (!otp || !otp.trim()) {
+      return res.status(400).json({ success: false, error: 'OTP is required' });
+    }
+
+    // Need otpCode in the result — use findOne without select restriction
+    const profile = await Profile.findOne({ uniqueId: id });
+    if (!profile) return res.status(404).json({ success: false, error: 'Profile not found' });
+
+    const hr = profile.helperRequest;
+    if (!hr || !hr.otpCode) {
+      return res.status(400).json({ success: false, error: 'No OTP found. Please request a new one.' });
+    }
+    if (new Date() > hr.otpExpiresAt) {
+      return res.status(400).json({ success: false, error: 'OTP expired. Please request a new one.' });
+    }
+    if (hr.otpCode !== otp.trim()) {
+      return res.status(400).json({ success: false, error: 'Incorrect OTP. Please check and try again.' });
+    }
+
+    // OTP valid — create access request
+    const requestId = crypto.randomBytes(6).toString('hex');
+    const baseUrl   = (process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`).trim();
+    const approveUrl = `${baseUrl}/emergency/${id}/approve/${requestId}`;
+    const rejectUrl  = `${baseUrl}/emergency/${id}/reject/${requestId}`;
+
+    await Profile.findOneAndUpdate(
+      { uniqueId: id },
+      {
+        accessRequest: {
+          requestId,
+          helperPhone: hr.phone,
+          status:    'pending',
+          expiresAt: new Date(Date.now() + 10 * 60 * 1000),
+          createdAt: new Date()
+        },
+        'helperRequest.otpCode': null // clear OTP after use
+      }
+    );
+
+    const allContacts = [
+      profile.emergencyContactNumber,
+      ...(profile.additionalEmergencyContacts || []).map(c => c.phone)
+    ].filter(Boolean);
+
+    const scannerIP = req.ip || req.connection?.remoteAddress;
+    const ipLocation = await getIPLocation(scannerIP);
+    const scanTime = new Date();
+
+    console.log('\n' + '='.repeat(65));
+    console.log('🔔 ACCESS REQUEST (OTP VERIFIED)');
+    console.log('='.repeat(65));
+    console.log(`Patient      : ${profile.fullName}`);
+    console.log(`Helper Phone : ${hr.phone}`);
+    console.log(`Contacts     : ${allContacts.join(', ')}`);
+    console.log(`APPROVE      : ${approveUrl}`);
+    console.log(`REJECT       : ${rejectUrl}`);
+    console.log('='.repeat(65) + '\n');
+
+    allContacts.forEach(phone =>
+      notifyApprovalRequest(phone, profile.fullName, profile.bloodGroup, approveUrl, rejectUrl, scanTime, ipLocation)
+    );
+
+    res.json({ success: true, requestId });
+  } catch (error) { next(error); }
+};
+
 module.exports = {
   getEmergencyInfo,
-  getFirstAid
+  getFirstAid,
+  reportScanLocation,
+  sendHelperOtp,
+  verifyHelperOtp,
+  approveAccessRequest,
+  rejectAccessRequest,
+  getAccessRequestStatus
 };

@@ -5,7 +5,7 @@
 
 const express = require('express');
 const router = express.Router();
-const { createProfile, getProfile, updateProfile } = require('../controllers/profileController');
+const { createProfile, getProfile, getMyProfile, updateProfile } = require('../controllers/profileController');
 const { validateProfile, checkValidation } = require('../middleware/validator');
 const { protect, optionalAuth } = require('../middleware/auth');
 
@@ -16,10 +16,16 @@ const { protect, optionalAuth } = require('../middleware/auth');
 router.post('/', optionalAuth, validateProfile, checkValidation, createProfile);
 
 /**
- * GET /api/profile/:id
- * Get full profile by ID (internal use)
+ * GET /api/profile/mine
+ * Get the logged-in user's own profile ID (must be before /:id)
  */
-router.get('/:id', optionalAuth, getProfile);
+router.get('/mine', protect, getMyProfile);
+
+/**
+ * GET /api/profile/:id
+ * Get full profile by ID (requires authentication — owner only)
+ */
+router.get('/:id', protect, getProfile);
 
 /**
  * PUT /api/profile/:id

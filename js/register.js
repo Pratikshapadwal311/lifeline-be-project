@@ -55,15 +55,10 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Real-time validation
-    const inputs = form.querySelectorAll('input, select, textarea');
-    inputs.forEach(input => {
-        input.addEventListener('blur', function() {
-            validateField(input);
-        });
-        
-        input.addEventListener('input', function() {
-            // Clear error on input
+    // Real-time validation for static fields
+    form.querySelectorAll('input:not([id^="contact"]), select, textarea').forEach(input => {
+        input.addEventListener('blur', () => validateField(input));
+        input.addEventListener('input', () => {
             const errorSpan = input.parentElement.querySelector('.error-message');
             if (errorSpan) {
                 errorSpan.classList.add('hidden');
@@ -79,23 +74,14 @@ document.addEventListener('DOMContentLoaded', function() {
 function validateForm() {
     const form = document.getElementById('emergencyForm');
     let isValid = true;
-    
-    // Required fields
-    const requiredFields = [
-        'fullName',
-        'age',
-        'bloodGroup',
-        'emergencyContactName',
-        'emergencyContactPhone'
-    ];
-    
+
+    // Required basic fields
+    const requiredFields = ['fullName', 'age', 'bloodGroup'];
     requiredFields.forEach(fieldName => {
         const field = document.getElementById(fieldName);
-        if (!validateField(field)) {
-            isValid = false;
-        }
+        if (!validateField(field)) isValid = false;
     });
-    
+
     // Validate gender radio buttons
     const genderSelected = document.querySelector('input[name="gender"]:checked');
     if (!genderSelected) {
@@ -106,14 +92,33 @@ function validateForm() {
         }
         isValid = false;
     }
-    
-    // Validate Indian phone number format
-    const phoneField = document.getElementById('emergencyContactPhone');
-    if (phoneField.value && !isValidPhoneNumber(phoneField.value)) {
-        showFieldError(phoneField, 'Please enter a valid Indian phone number (10 digits, or +91-XXXXXXXXXX)');
+
+    // Validate first 3 contacts — all required
+    for (let i = 0; i < 3; i++) {
+        const nameInput  = document.getElementById('contactName_' + i);
+        const phoneInput = document.getElementById('contactPhone_' + i);
+        const label = i === 0 ? 'Primary contact' : 'Contact ' + (i + 1);
+
+        if (!nameInput || !nameInput.value.trim()) {
+            if (nameInput) showFieldError(nameInput, label + ' name is required');
+            isValid = false;
+        }
+        if (!phoneInput || !phoneInput.value.trim()) {
+            if (phoneInput) showFieldError(phoneInput, label + ' phone number is required');
+            isValid = false;
+        } else if (!isValidPhoneNumber(phoneInput.value)) {
+            showFieldError(phoneInput, 'Please enter a valid Indian phone number');
+            isValid = false;
+        }
+    }
+
+    // Validate 4th contact phone if entered (optional but must be valid)
+    const fourthPhone = document.getElementById('contactPhone_3');
+    if (fourthPhone && fourthPhone.value.trim() && !isValidPhoneNumber(fourthPhone.value)) {
+        showFieldError(fourthPhone, 'Please enter a valid Indian phone number');
         isValid = false;
     }
-    
+
     // Validate age
     const ageField = document.getElementById('age');
     const age = parseInt(ageField.value);
@@ -121,7 +126,7 @@ function validateForm() {
         showFieldError(ageField, 'Please enter a valid age');
         isValid = false;
     }
-    
+
     return isValid;
 }
 
@@ -237,17 +242,26 @@ function collectFormData() {
         insurancePolicyNumber: formData.get('insurancePolicyNumber') || '',
         governmentIdNumber: formData.get('governmentIdNumber') || '',
         dietaryRestrictions: formData.get('dietaryRestrictions') || '',
-        // Emergency contact
-        emergencyContactName: formData.get('emergencyContactName'),
-        emergencyContactNumber: formData.get('emergencyContactPhone'),
+        // Emergency contacts — primary (index 0) + additional (indices 1-3)
+        emergencyContactName:   (document.getElementById('contactName_0')  || {}).value || '',
+        emergencyContactNumber: (document.getElementById('contactPhone_0') || {}).value || '',
+        additionalEmergencyContacts: (() => {
+            const result = [];
+            const items = document.querySelectorAll('#contactList > div');
+            items.forEach((item, idx) => {
+                if (idx === 0) return; // primary already captured above
+                const name  = (item.querySelector('input[type="text"]') || {}).value || '';
+                const phone = (item.querySelector('input[type="tel"]')  || {}).value || '';
+                if (phone.trim()) result.push({ name: name.trim(), phone: phone.trim() });
+            });
+            return result;
+        })(),
         // Additional fields (optional)
         organDonor: formData.get('organDonor') === 'on' || false,
         address: formData.get('address') || '',
         city: formData.get('city') || '',
         state: formData.get('state') || '',
         notes: formData.get('notes') || '',
-        // Owner notification
-        ownerNotificationContact: formData.get('ownerNotificationContact') || '',
         createdAt: new Date().toISOString()
     };
 }
