@@ -142,6 +142,26 @@ app.get('/', (req, res) => {
   res.sendFile(__dirname + '/index.html');
 });
 
+// ── SMS test endpoint (development only) ─────────────────────────────────────
+// Visit: http://localhost:3000/test-sms/9876543210
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/test-sms/:phone', async (req, res) => {
+    const { sendSMS } = require('./utils/notifications');
+    const phone = req.params.phone;
+    console.log(`\n[TEST] Sending test SMS to: ${phone}`);
+    const result = await sendSMS(phone, 'ICE App Test: SMS is working correctly!');
+    res.json({
+      success: result,
+      phone,
+      twilioSidSet: !!process.env.TWILIO_ACCOUNT_SID,
+      twilioFromSet: !!process.env.TWILIO_PHONE_NUMBER,
+      twilioSidPreview: process.env.TWILIO_ACCOUNT_SID
+        ? process.env.TWILIO_ACCOUNT_SID.slice(0, 8) + '...'
+        : 'NOT SET'
+    });
+  });
+}
+
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });

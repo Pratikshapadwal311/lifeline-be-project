@@ -8,9 +8,10 @@ const router = express.Router();
 const {
   getEmergencyInfo, getFirstAid, reportScanLocation,
   sendHelperOtp, verifyHelperOtp,
-  approveAccessRequest, rejectAccessRequest, getAccessRequestStatus
+  showDecidePage, approveAccessRequest, rejectAccessRequest, getAccessRequestStatus
 } = require('../controllers/emergencyController');
 
+router.get('/decide/:id/:requestId',             showDecidePage);
 router.get('/:id',                               getEmergencyInfo);
 router.get('/:id/firstaid',                      getFirstAid);
 router.post('/:id/location',                     reportScanLocation);

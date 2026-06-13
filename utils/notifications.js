@@ -3,7 +3,6 @@
  * Handles notifications for QR scans and OTP requests
  */
 
-const https = require('https');
 const http = require('http');
 
 /**
@@ -39,74 +38,40 @@ async function getIPLocation(ip) {
 }
 
 /**
- * Send SMS via Fast2SMS
+ * Send SMS via Twilio
  * @param {string} phone - Phone number (10 digits)
  * @param {string} message - SMS message text
  */
 async function sendSMS(phone, message) {
-  return new Promise((resolve, reject) => {
-    const apiKey = process.env.FAST2SMS_API_KEY;
+  const accountSid = process.env.TWILIO_ACCOUNT_SID;
+  const authToken  = process.env.TWILIO_AUTH_TOKEN;
+  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
 
-    if (!apiKey) {
-      console.log('[SMS] FAST2SMS_API_KEY not set. OTP not sent via SMS.');
-      return resolve(false);
-    }
+  if (!accountSid || !authToken || !fromNumber) {
+    console.log('[SMS] Twilio credentials not set. SMS not sent.');
+    return false;
+  }
 
-    // Clean phone number — keep only digits, remove country code if present
-    const cleanPhone = phone.replace(/\D/g, '').replace(/^91/, '').slice(-10);
+  const cleanPhone = phone.replace(/\D/g, '').replace(/^91/, '').slice(-10);
+  if (cleanPhone.length !== 10) {
+    console.log('[SMS] Invalid phone number:', phone);
+    return false;
+  }
 
-    if (cleanPhone.length !== 10) {
-      console.log('[SMS] Invalid phone number:', phone);
-      return resolve(false);
-    }
-
-    const payload = JSON.stringify({
-      route: 'q',
-      message: message,
-      language: 'english',
-      flash: 0,
-      numbers: cleanPhone
+  try {
+    const twilio = require('twilio');
+    const client = twilio(accountSid, authToken);
+    const msg = await client.messages.create({
+      body: message,
+      from: fromNumber,
+      to: '+91' + cleanPhone
     });
-
-    const options = {
-      hostname: 'www.fast2sms.com',
-      path: '/dev/bulkV2',
-      method: 'POST',
-      headers: {
-        authorization: apiKey,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        try {
-          const result = JSON.parse(data);
-          if (result.return === true) {
-            console.log(`[SMS] OTP sent successfully to ${cleanPhone}`);
-            resolve(true);
-          } else {
-            console.log('[SMS] Fast2SMS error:', result.message || data);
-            resolve(false);
-          }
-        } catch (e) {
-          console.log('[SMS] Failed to parse Fast2SMS response:', data);
-          resolve(false);
-        }
-      });
-    });
-
-    req.on('error', (err) => {
-      console.log('[SMS] Fast2SMS request error:', err.message);
-      resolve(false);
-    });
-
-    req.write(payload);
-    req.end();
-  });
+    console.log(`[SMS] ✅ Sent to ${cleanPhone} (SID: ${msg.sid})`);
+    return true;
+  } catch (err) {
+    console.log(`[SMS] ❌ Twilio error: ${err.message}`);
+    return false;
+  }
 }
 
 /**
@@ -176,16 +141,10 @@ async function notifyOTPRequest(contact, deviceInfo) {
  * Send approve/reject access request SMS to an emergency contact
  * Called on QR scan when the profile has sensitive data
  */
-async function notifyApprovalRequest(phone, patientName, bloodGroup, approveUrl, rejectUrl, scanTime, ipLocation) {
+async function notifyApprovalRequest(phone, patientName, bloodGroup, decideUrl, scanTime, ipLocation) {
   if (!phone) return;
-  const timeStr = scanTime.toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
-  let locationPart = '';
-  if (ipLocation) {
-    const place = [ipLocation.city, ipLocation.region].filter(Boolean).join(', ');
-    if (place) locationPart = ` near ${place}`;
-  }
-  const bgText = bloodGroup && bloodGroup !== 'Unknown' ? ` Blood Group: ${bloodGroup}.` : '';
-  const message = `ICE ALERT: ${patientName}'s QR scanned at ${timeStr}${locationPart}.${bgText} Someone needs full medical info. APPROVE: ${approveUrl} REJECT: ${rejectUrl} (valid 10 min)`;
+  const bgText = bloodGroup && bloodGroup !== 'Unknown' ? ` Blood: ${bloodGroup}.` : '';
+  const message = `ICE ALERT: Someone needs full medical info for ${patientName}.${bgText} Tap to approve or reject (10 min): ${decideUrl}`;
   console.log(`[APPROVAL] Sending approve/reject SMS to ${phone}`);
   await sendSMS(phone, message);
 }

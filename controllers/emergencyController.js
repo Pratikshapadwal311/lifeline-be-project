@@ -147,15 +147,22 @@ const getEmergencyInfo = async (req, res, next) => {
               to   { opacity: 1; transform: translateY(0); }
             }
             .fade-in { animation: fade-in 0.4s ease forwards; }
+            #langSelect option { background-color: #03045E; }
           </style>
+          <script src="/js/translations.js"></script>
         </head>
         <body class="min-h-screen">
 
           <!-- Header -->
-          <div class="bg-navy text-white py-4 px-4 text-center">
-            <div class="flex items-center justify-center gap-3">
-              <i class="fas fa-heartbeat text-2xl text-lcyan"></i>
-              <h1 class="text-xl md:text-2xl font-bold tracking-wide">EMERGENCY MEDICAL INFORMATION</h1>
+          <div class="bg-navy text-white py-3 px-4">
+            <div class="flex items-center justify-between max-w-2xl mx-auto">
+              <div class="flex items-center gap-3 flex-1 justify-center">
+                <i class="fas fa-heartbeat text-2xl text-lcyan"></i>
+                <h1 class="text-xl md:text-2xl font-bold tracking-wide" data-i18n="emergencyHeader">EMERGENCY MEDICAL INFORMATION</h1>
+              </div>
+              <select id="langSelect" onchange="changeLang(this.value)"
+                style="background:#03045E;color:#90E0EF;border:1px solid #90E0EF;border-radius:6px;padding:4px 6px;font-size:12px;cursor:pointer;outline:none;flex-shrink:0;margin-left:8px">
+              </select>
             </div>
           </div>
 
@@ -164,9 +171,9 @@ const getEmergencyInfo = async (req, res, next) => {
             <a href="tel:112"
                class="inline-flex items-center justify-center gap-3 bg-cyan hover:bg-blue text-white font-bold py-3 px-8 rounded-xl shadow-lg text-lg transition-colors w-full max-w-sm mx-auto">
               <i class="fas fa-phone-alt text-2xl"></i>
-              <span>Call 112 — Emergency Services</span>
+              <span data-i18n="callEmergency">Call 112 — Emergency Services</span>
             </a>
-            <p class="text-xs text-blue mt-1">Tap to call ambulance immediately</p>
+            <p class="text-xs text-blue mt-1" data-i18n="loading">Tap to call ambulance immediately</p>
           </div>
 
           <!-- Notified banner -->
@@ -188,14 +195,14 @@ const getEmergencyInfo = async (req, res, next) => {
             <div class="bg-white rounded-xl shadow-sm border border-lcyan p-6 text-center fade-in">
               <i class="fas fa-user-circle text-5xl text-cyan mb-3"></i>
               <h2 class="text-4xl md:text-5xl font-bold text-navy">${escapeHtml(emergencyData.fullName || 'Unknown')}</h2>
-              <p class="text-blue text-xs uppercase tracking-widest mt-2 font-medium">Emergency Medical Profile</p>
+              <p class="text-blue text-xs uppercase tracking-widest mt-2 font-medium" data-i18n="emergencyProfile">Emergency Medical Profile</p>
             </div>
 
             <!-- ② Blood Group (blue, not red) -->
             <div class="bg-blue rounded-xl shadow-lg p-6 text-center text-white fade-in">
               <div class="flex items-center justify-center gap-3 mb-2">
                 <i class="fas fa-tint text-lcyan text-3xl"></i>
-                <h3 class="text-lg font-bold uppercase tracking-widest text-lcyan">Blood Group</h3>
+                <h3 class="text-lg font-bold uppercase tracking-widest text-lcyan" data-i18n="bloodGroup">Blood Group</h3>
               </div>
               <p class="text-7xl font-black tracking-tight leading-none">${escapeHtml(emergencyData.bloodGroup || '?')}</p>
               <p class="text-lcyan text-sm mt-3 font-medium">
@@ -207,15 +214,15 @@ const getEmergencyInfo = async (req, res, next) => {
             <div class="bg-white rounded-xl shadow-sm border border-lcyan p-5 fade-in">
               <div class="flex items-center mb-3 gap-2">
                 <i class="fas fa-info-circle text-cyan text-xl"></i>
-                <h3 class="font-semibold text-navy">Basic Information</h3>
+                <h3 class="font-semibold text-navy" data-i18n="basicInfo">Basic Information</h3>
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div class="bg-xlcyan rounded-lg p-3 text-center border border-lcyan">
-                  <p class="text-xs text-cyan uppercase tracking-wide mb-1 font-medium">Age</p>
+                  <p class="text-xs text-cyan uppercase tracking-wide mb-1 font-medium" data-i18n="age">Age</p>
                   <p class="text-2xl font-bold text-navy">${emergencyData.age ? escapeHtml(String(emergencyData.age)) : '—'}</p>
                 </div>
                 <div class="bg-xlcyan rounded-lg p-3 text-center border border-lcyan">
-                  <p class="text-xs text-cyan uppercase tracking-wide mb-1 font-medium">Gender</p>
+                  <p class="text-xs text-cyan uppercase tracking-wide mb-1 font-medium" data-i18n="gender">Gender</p>
                   <p class="text-2xl font-bold text-navy">${escapeHtml(emergencyData.gender || '—')}</p>
                 </div>
               </div>
@@ -225,7 +232,7 @@ const getEmergencyInfo = async (req, res, next) => {
             <div class="bg-white rounded-xl shadow-sm border border-lcyan p-5 fade-in">
               <div class="flex items-center gap-2 mb-4">
                 <i class="fas fa-first-aid text-cyan text-xl"></i>
-                <h3 class="font-semibold text-navy">First Aid Instructions</h3>
+                <h3 class="font-semibold text-navy" data-i18n="firstAidTitle">First Aid Instructions</h3>
               </div>
               <div id="firstAidContent">
                 <div class="flex items-center justify-center py-6 text-cyan gap-2">
@@ -239,7 +246,7 @@ const getEmergencyInfo = async (req, res, next) => {
             <div class="bg-white border border-lcyan rounded-xl shadow-sm p-5 fade-in">
               <div class="flex items-center gap-2 mb-4">
                 <i class="fas fa-phone-alt text-cyan text-xl"></i>
-                <h3 class="font-semibold text-navy">Emergency Contacts</h3>
+                <h3 class="font-semibold text-navy" data-i18n="emergencyContact">Emergency Contacts</h3>
                 <span class="ml-auto bg-cyan text-white text-xs font-bold px-2 py-1 rounded-full">${totalContacts}</span>
               </div>
               <div class="space-y-3">
@@ -521,8 +528,8 @@ const getEmergencyInfo = async (req, res, next) => {
                     } catch {}
 
                     if (d.data) {
-                      showHelperGuide(d.data, conditions);
                       displayFullDetails(d.data);
+                      showHelperGuide(d.data, conditions);
                     }
                     setTimeout(() => details.scrollIntoView({ behavior: 'smooth', block: 'start' }), 400);
                   } else if (d.status === 'rejected') {
@@ -689,6 +696,37 @@ const getEmergencyInfo = async (req, res, next) => {
               if (!t) return '';
               return String(t).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
             }
+
+            // ── Multi-language support ────────────────────────────────────────
+            function initLang() {
+              var sel = document.getElementById('langSelect');
+              if (!sel || typeof TRANSLATIONS === 'undefined') return;
+              var cur = getCurrentLang();
+              Object.keys(TRANSLATIONS).forEach(function(code) {
+                var d = TRANSLATIONS[code];
+                var opt = document.createElement('option');
+                opt.value = code;
+                opt.textContent = d.flag + ' ' + d.langName;
+                opt.selected = (code === cur);
+                sel.appendChild(opt);
+              });
+              applyLang();
+            }
+            function applyLang() {
+              if (typeof TRANSLATIONS === 'undefined') return;
+              var lang = getCurrentLang();
+              document.documentElement.lang = lang;
+              document.documentElement.dir = (TRANSLATIONS[lang] && TRANSLATIONS[lang].dir) || 'ltr';
+              document.querySelectorAll('[data-i18n]').forEach(function(el) {
+                var val = t(el.getAttribute('data-i18n'));
+                if (val) el.textContent = val;
+              });
+            }
+            function changeLang(lang) {
+              setLanguage(lang);
+              applyLang();
+            }
+            initLang();
           </script>
         </body>
         </html>
@@ -796,6 +834,31 @@ function accessResponseHtml(outcome, patientName) {
   const c = map[outcome] || map['invalid'];
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${c.title} – ICE</title><style>*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#CAF0F8}.card{background:#fff;border-radius:18px;padding:40px 32px;max-width:380px;width:90%;text-align:center;box-shadow:0 4px 24px rgba(3,4,94,.12)}.emoji{font-size:56px;margin-bottom:16px}h1{color:#03045E;margin:0 0 12px;font-size:1.4rem}p{color:#0077B6;margin:0;line-height:1.5}small{color:#90E0EF;display:block;margin-top:24px;font-size:.75rem}</style></head><body><div class="card"><div class="emoji">${c.emoji}</div><h1>${c.title}</h1><p>${c.msg}</p><small>ICE – In Case of Emergency &nbsp;·&nbsp; You can close this page.</small></div></body></html>`;
 }
+
+/**
+ * Single decide page — shows Approve/Reject buttons in one tap
+ * GET /emergency/decide/:id/:requestId
+ */
+const showDecidePage = async (req, res, next) => {
+  try {
+    const { id, requestId } = req.params;
+    const profile = await Profile.findOne({ uniqueId: id });
+    if (!profile) return res.send(accessResponseHtml('not_found', ''));
+
+    const ar = profile.accessRequest;
+    if (!ar || ar.requestId !== requestId) return res.send(accessResponseHtml('invalid', profile.fullName));
+    if (new Date() > ar.expiresAt)          return res.send(accessResponseHtml('expired', profile.fullName));
+    if (ar.status === 'approved')           return res.send(accessResponseHtml('already_approved', profile.fullName));
+    if (ar.status === 'rejected')           return res.send(accessResponseHtml('already_rejected', profile.fullName));
+
+    const name = escapeHtml(profile.fullName || 'Unknown');
+    const bg = escapeHtml(profile.bloodGroup || '');
+    const approveHref = `/emergency/${id}/approve/${requestId}`;
+    const rejectHref  = `/emergency/${id}/reject/${requestId}`;
+
+    return res.send(`<!DOCTYPE html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Access Request – ICE</title><style>*{box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#CAF0F8}.card{background:#fff;border-radius:18px;padding:36px 28px;max-width:380px;width:90%;text-align:center;box-shadow:0 4px 24px rgba(3,4,94,.12)}h1{color:#03045E;margin:0 0 8px;font-size:1.3rem}.sub{color:#0077B6;margin:0 0 6px;font-size:.95rem}.bg{display:inline-block;background:#03045E;color:#90E0EF;border-radius:8px;padding:4px 14px;font-size:1rem;font-weight:700;margin-bottom:18px}.info{color:#555;font-size:.85rem;margin-bottom:24px;line-height:1.5}.btn{display:block;width:100%;padding:16px;border:none;border-radius:12px;font-size:1.1rem;font-weight:700;cursor:pointer;margin-bottom:12px;text-decoration:none}.approve{background:#00B4D8;color:#fff}.approve:hover{background:#0096c7}.reject{background:#f1f3f5;color:#03045E}.reject:hover{background:#dee2e6}small{color:#90E0EF;font-size:.72rem}</style></head><body><div class="card"><div style="font-size:48px;margin-bottom:12px">🚨</div><h1>Medical Info Access</h1><p class="sub">Patient: <strong>${name}</strong></p>${bg ? `<div class="bg">Blood Group: ${bg}</div>` : ''}<p class="info">A first responder is requesting full medical information. Do you approve?</p><a class="btn approve" href="${approveHref}">✅ Approve Access</a><a class="btn reject" href="${rejectHref}">🚫 Reject</a><small>ICE – In Case of Emergency &nbsp;·&nbsp; Valid for 10 minutes</small></div></body></html>`);
+  } catch (error) { next(error); }
+};
 
 /**
  * Contact approves access request
@@ -963,6 +1026,7 @@ const verifyHelperOtp = async (req, res, next) => {
     const baseUrl   = (process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`).trim();
     const approveUrl = `${baseUrl}/emergency/${id}/approve/${requestId}`;
     const rejectUrl  = `${baseUrl}/emergency/${id}/reject/${requestId}`;
+    const decideUrl  = `${baseUrl}/emergency/decide/${id}/${requestId}`;
 
     await Profile.findOneAndUpdate(
       { uniqueId: id },
@@ -993,12 +1057,11 @@ const verifyHelperOtp = async (req, res, next) => {
     console.log(`Patient      : ${profile.fullName}`);
     console.log(`Helper Phone : ${hr.phone}`);
     console.log(`Contacts     : ${allContacts.join(', ')}`);
-    console.log(`APPROVE      : ${approveUrl}`);
-    console.log(`REJECT       : ${rejectUrl}`);
+    console.log(`DECIDE       : ${decideUrl}`);
     console.log('='.repeat(65) + '\n');
 
     allContacts.forEach(phone =>
-      notifyApprovalRequest(phone, profile.fullName, profile.bloodGroup, approveUrl, rejectUrl, scanTime, ipLocation)
+      notifyApprovalRequest(phone, profile.fullName, profile.bloodGroup, decideUrl, scanTime, ipLocation)
     );
 
     res.json({ success: true, requestId });
@@ -1011,6 +1074,7 @@ module.exports = {
   reportScanLocation,
   sendHelperOtp,
   verifyHelperOtp,
+  showDecidePage,
   approveAccessRequest,
   rejectAccessRequest,
   getAccessRequestStatus
