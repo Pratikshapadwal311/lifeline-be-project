@@ -363,7 +363,7 @@ const getEmergencyInfo = async (req, res, next) => {
 
           <footer class="bg-navy text-white mt-10 py-5 text-center">
             <i class="fas fa-heartbeat text-lcyan mr-2"></i>
-            <span class="text-lcyan text-sm">&copy; 2024 ICE – In Case of Emergency</span>
+            <span class="text-lcyan text-sm">&copy; 2026 ICE – In Case of Emergency</span>
             <p class="text-cyan text-xs mt-1">For emergencies, call 112 immediately</p>
           </footer>
 

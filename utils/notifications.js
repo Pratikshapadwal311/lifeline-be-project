@@ -3,6 +3,7 @@
  * Handles notifications for QR scans and OTP requests
  */
 
+const https = require('https');
 const http = require('http');
 
 /**
@@ -38,40 +39,67 @@ async function getIPLocation(ip) {
 }
 
 /**
- * Send SMS via Twilio
+ * Send SMS via Fast2SMS
  * @param {string} phone - Phone number (10 digits)
  * @param {string} message - SMS message text
  */
 async function sendSMS(phone, message) {
-  const accountSid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken  = process.env.TWILIO_AUTH_TOKEN;
-  const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+  return new Promise((resolve) => {
+    const apiKey = process.env.FAST2SMS_API_KEY;
 
-  if (!accountSid || !authToken || !fromNumber) {
-    console.log('[SMS] Twilio credentials not set. SMS not sent.');
-    return false;
-  }
+    if (!apiKey) {
+      console.log('[SMS] FAST2SMS_API_KEY not set. SMS not sent.');
+      return resolve(false);
+    }
 
-  const cleanPhone = phone.replace(/\D/g, '').replace(/^91/, '').slice(-10);
-  if (cleanPhone.length !== 10) {
-    console.log('[SMS] Invalid phone number:', phone);
-    return false;
-  }
+    const cleanPhone = phone.replace(/\D/g, '').replace(/^91/, '').slice(-10);
+    if (cleanPhone.length !== 10) {
+      console.log('[SMS] Invalid phone number:', phone);
+      return resolve(false);
+    }
 
-  try {
-    const twilio = require('twilio');
-    const client = twilio(accountSid, authToken);
-    const msg = await client.messages.create({
-      body: message,
-      from: fromNumber,
-      to: '+91' + cleanPhone
+    const params = new URLSearchParams({
+      authorization: apiKey,
+      route: 'q',
+      message: message,
+      numbers: cleanPhone
     });
-    console.log(`[SMS] ✅ Sent to ${cleanPhone} (SID: ${msg.sid})`);
-    return true;
-  } catch (err) {
-    console.log(`[SMS] ❌ Twilio error: ${err.message}`);
-    return false;
-  }
+
+    const options = {
+      hostname: 'www.fast2sms.com',
+      path: '/dev/bulkV2?' + params.toString(),
+      method: 'GET',
+      headers: { 'cache-control': 'no-cache' }
+    };
+
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', chunk => { data += chunk; });
+      res.on('end', () => {
+        console.log(`[SMS] Fast2SMS HTTP ${res.statusCode} → ${data}`);
+        try {
+          const result = JSON.parse(data);
+          if (result.return === true) {
+            console.log(`[SMS] ✅ Sent successfully to ${cleanPhone}`);
+            resolve(true);
+          } else {
+            console.log(`[SMS] ❌ Rejected: ${JSON.stringify(result.message || result)}`);
+            resolve(false);
+          }
+        } catch {
+          console.log('[SMS] ❌ Could not parse response:', data);
+          resolve(false);
+        }
+      });
+    });
+
+    req.on('error', (err) => {
+      console.log('[SMS] ❌ Network error:', err.message);
+      resolve(false);
+    });
+
+    req.end();
+  });
 }
 
 /**
