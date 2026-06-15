@@ -7,6 +7,7 @@
 const CONDITIONS = [
   {
     name: 'Diabetes',
+    condKey: 'diabetes',
     keywords: ['diabet', 'insulin', 'metformin', 'glucophage', 'blood sugar', 'hypoglyc', 'hyperglycemia', 'type 1', 'type 2'],
     icon: '🩸',
     color: 'orange',
@@ -22,6 +23,7 @@ const CONDITIONS = [
   },
   {
     name: 'Heart Condition',
+    condKey: 'heart',
     keywords: ['heart', 'cardiac', 'angina', 'pacemaker', 'bypass', 'amlodipine', 'atenolol', 'cardio', 'heart attack', 'heart failure', 'arrhythmia', 'nitroglycerin', 'ecg'],
     icon: '❤️',
     color: 'red',
@@ -38,6 +40,7 @@ const CONDITIONS = [
   },
   {
     name: 'Epilepsy / Seizures',
+    condKey: 'epilepsy',
     keywords: ['epilep', 'seizure', 'convuls', 'fits', 'phenytoin', 'valproate', 'levetiracetam', 'carbamazepine', 'epileptic'],
     icon: '⚡',
     color: 'purple',
@@ -54,6 +57,7 @@ const CONDITIONS = [
   },
   {
     name: 'Asthma',
+    condKey: 'asthma',
     keywords: ['asthma', 'inhaler', 'salbutamol', 'ventolin', 'bronch', 'wheez', 'breathing problem', 'respiratory'],
     icon: '🫁',
     color: 'blue',
@@ -69,6 +73,7 @@ const CONDITIONS = [
   },
   {
     name: 'Hypertension',
+    condKey: 'hyper',
     keywords: ['hypertens', 'blood pressure', 'high bp', 'amlodipine', 'losartan', 'telmisartan', 'ramipril', 'bp patient'],
     icon: '🔴',
     color: 'red',
@@ -84,6 +89,7 @@ const CONDITIONS = [
   },
   {
     name: 'Blood Thinners',
+    condKey: 'bloodthin',
     keywords: ['warfarin', 'blood thinner', 'anticoagul', 'clexane', 'heparin', 'aspirin', 'clopidogrel', 'rivaroxaban', 'apixaban', 'dabigatran'],
     icon: '💉',
     color: 'yellow',
@@ -98,6 +104,7 @@ const CONDITIONS = [
   },
   {
     name: 'Kidney Disease',
+    condKey: 'kidney',
     keywords: ['kidney', 'renal', 'dialysis', 'nephro', 'creatinine', 'kidney failure', 'ckd'],
     icon: '🫘',
     color: 'green',
@@ -152,6 +159,8 @@ function generateFirstAidInstructions(profile) {
   if (allergies && allergies.toLowerCase() !== 'none' && allergies.trim()) {
     matched.push({
       name: 'Allergies',
+      condKey: 'allergy',
+      dynValue: allergies,
       icon: '⚠️',
       color: 'yellow',
       warning: `Patient is ALLERGIC to: ${allergies}`,
@@ -168,6 +177,8 @@ function generateFirstAidInstructions(profile) {
   if (knownTriggers && knownTriggers.trim()) {
     matched.push({
       name: 'Known Triggers',
+      condKey: 'triggers',
+      dynValue: knownTriggers,
       icon: '⚠️',
       color: 'orange',
       warning: `Known Triggers: ${knownTriggers}`,
@@ -185,6 +196,9 @@ function generateFirstAidInstructions(profile) {
     if (doctorPhone) instructions.push(`Call Doctor: ${doctorPhone}`);
     matched.push({
       name: 'Doctor Info',
+      condKey: 'doctor',
+      dynValue: doctorName || '',
+      dynPhone: doctorPhone || '',
       icon: '👨‍⚕️',
       color: 'blue',
       warning: `Patient's Doctor: ${doctorName || 'See below'}`,
@@ -196,6 +210,8 @@ function generateFirstAidInstructions(profile) {
   if (preferredHospital && preferredHospital.trim()) {
     matched.push({
       name: 'Preferred Hospital',
+      condKey: 'hospital',
+      dynValue: preferredHospital,
       icon: '🏥',
       color: 'blue',
       warning: `Take patient to: ${preferredHospital}`,
@@ -211,6 +227,8 @@ function generateFirstAidInstructions(profile) {
   if (bloodGroup && bloodGroup !== 'Unknown') {
     matched.push({
       name: 'Blood Group Info',
+      condKey: 'blood',
+      dynValue: bloodGroup,
       icon: '🩸',
       color: 'red',
       warning: `Blood Group: ${bloodGroup}`,

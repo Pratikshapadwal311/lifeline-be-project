@@ -173,18 +173,18 @@ const getEmergencyInfo = async (req, res, next) => {
               <i class="fas fa-phone-alt text-2xl"></i>
               <span data-i18n="callEmergency">Call 112 — Emergency Services</span>
             </a>
-            <p class="text-xs text-blue mt-1" data-i18n="loading">Tap to call ambulance immediately</p>
+            <p class="text-xs text-blue mt-1" data-i18n="callEmergencyDesc">Tap to call ambulance immediately</p>
           </div>
 
           <!-- Notified banner -->
           <div class="bg-cyan text-white px-4 py-2 text-center text-sm font-medium fade-in">
-            <i class="fas fa-bell mr-2"></i>All ${totalContacts} emergency contact${totalContacts > 1 ? 's' : ''} notified of this scan
+            <i class="fas fa-bell mr-2"></i><span data-i18n="contactsNotified" data-i18n-n="${totalContacts}">All ${totalContacts} emergency contact${totalContacts > 1 ? 's' : ''} notified of this scan</span>
             <i class="fas fa-check-circle ml-2"></i>
           </div>
 
           <!-- Scan time -->
           <div class="bg-lcyan border-b border-cyan px-4 py-1 text-center">
-            <p class="text-xs text-blue"><i class="fas fa-clock mr-1"></i>Scanned at: <span id="scanTime"></span></p>
+            <p class="text-xs text-blue"><i class="fas fa-clock mr-1"></i><span data-i18n="scannedAt">Scanned at:</span> <span id="scanTime"></span></p>
           </div>
 
           <div id="locationBanner" class="hidden px-4 py-2 text-center text-sm font-medium fade-in"></div>
@@ -206,7 +206,7 @@ const getEmergencyInfo = async (req, res, next) => {
               </div>
               <p class="text-7xl font-black tracking-tight leading-none">${escapeHtml(emergencyData.bloodGroup || '?')}</p>
               <p class="text-lcyan text-sm mt-3 font-medium">
-                <i class="fas fa-info-circle mr-1"></i>Share with paramedics immediately
+                <i class="fas fa-info-circle mr-1"></i><span data-i18n="shareParamedics">Share with paramedics immediately</span>
               </p>
             </div>
 
@@ -223,7 +223,7 @@ const getEmergencyInfo = async (req, res, next) => {
                 </div>
                 <div class="bg-xlcyan rounded-lg p-3 text-center border border-lcyan">
                   <p class="text-xs text-cyan uppercase tracking-wide mb-1 font-medium" data-i18n="gender">Gender</p>
-                  <p class="text-2xl font-bold text-navy">${escapeHtml(emergencyData.gender || '—')}</p>
+                  <p class="text-2xl font-bold text-navy" data-i18n-gender="${escapeHtml(emergencyData.gender || '')}">${escapeHtml(emergencyData.gender || '—')}</p>
                 </div>
               </div>
             </div>
@@ -237,7 +237,7 @@ const getEmergencyInfo = async (req, res, next) => {
               <div id="firstAidContent">
                 <div class="flex items-center justify-center py-6 text-cyan gap-2">
                   <i class="fas fa-spinner fa-spin"></i>
-                  <span class="text-sm">Loading instructions…</span>
+                  <span class="text-sm" data-i18n="loadingInstr">Loading instructions…</span>
                 </div>
               </div>
             </div>
@@ -256,9 +256,9 @@ const getEmergencyInfo = async (req, res, next) => {
                   <i class="fas fa-phone-alt text-xl mr-4 flex-shrink-0"></i>
                   <div class="text-left min-w-0">
                     <div class="truncate">${escapeHtml(emergencyData.emergencyContactName || 'Primary Contact')}</div>
-                    <div class="text-xs font-normal text-lcyan mt-0.5">Primary Emergency Contact</div>
+                    <div class="text-xs font-normal text-lcyan mt-0.5" data-i18n="primaryContact">Primary Emergency Contact</div>
                   </div>
-                  <span class="ml-auto text-xs bg-white bg-opacity-20 px-2 py-1 rounded-lg flex-shrink-0">TAP TO CALL</span>
+                  <span class="ml-auto text-xs bg-white bg-opacity-20 px-2 py-1 rounded-lg flex-shrink-0" data-i18n="tapToCall">TAP TO CALL</span>
                 </a>` : ''}
                 ${emergencyData.additionalEmergencyContacts.map((c, i) => c.phone ? `
                 <a href="tel:${escapeHtml(c.phone.replace(/\D/g, ''))}"
@@ -280,9 +280,9 @@ const getEmergencyInfo = async (req, res, next) => {
               <div id="phoneStep" class="bg-white rounded-xl shadow-sm border border-lcyan p-5">
                 <div class="flex items-center gap-2 mb-2">
                   <i class="fas fa-lock text-cyan text-xl"></i>
-                  <h3 class="font-semibold text-navy">View Full Medical Information</h3>
+                  <h3 class="font-semibold text-navy" data-i18n="viewFullInfo">View Full Medical Information</h3>
                 </div>
-                <p class="text-sm text-blue mb-4">
+                <p class="text-sm text-blue mb-4" data-i18n="enterPhoneDesc">
                   Enter your phone number to receive a one-time OTP. After verifying, an approval request will be sent to the patient's emergency contacts.
                 </p>
                 <div class="flex flex-col sm:flex-row gap-2">
@@ -291,7 +291,7 @@ const getEmergencyInfo = async (req, res, next) => {
                          class="flex-1 px-4 py-3 border border-lcyan rounded-lg text-navy text-sm focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:border-cyan">
                   <button onclick="sendHelperOtp()" id="sendOtpBtn"
                           class="btn-navy font-bold px-5 py-3 rounded-lg text-sm flex items-center justify-center gap-2 sm:flex-shrink-0">
-                    <i class="fas fa-paper-plane"></i> Send OTP
+                    <i class="fas fa-paper-plane"></i> <span data-i18n="sendOtp">Send OTP</span>
                   </button>
                 </div>
                 <p id="phoneError" class="text-red-500 text-xs mt-2 hidden"></p>
@@ -301,10 +301,10 @@ const getEmergencyInfo = async (req, res, next) => {
               <div id="otpStep" class="hidden bg-white rounded-xl shadow-sm border border-lcyan p-5">
                 <div class="flex items-center gap-2 mb-2">
                   <i class="fas fa-mobile-alt text-cyan text-xl"></i>
-                  <h3 class="font-semibold text-navy">Enter OTP</h3>
+                  <h3 class="font-semibold text-navy" data-i18n="enterOtpHeading">Enter OTP</h3>
                 </div>
                 <p class="text-sm text-blue mb-4">
-                  OTP sent to <strong id="otpPhoneDisplay"></strong>. Valid for 5 minutes.
+                  <span data-i18n="otpSentTo">OTP sent to</span> <strong id="otpPhoneDisplay"></strong>. <span data-i18n="validFor5">Valid for 5 minutes.</span>
                 </p>
                 <div class="flex flex-col sm:flex-row gap-2">
                   <input type="text" id="otpInput"
@@ -312,12 +312,12 @@ const getEmergencyInfo = async (req, res, next) => {
                          class="flex-1 px-4 py-3 border border-lcyan rounded-lg text-navy text-center text-2xl tracking-widest font-bold focus:outline-none focus:ring-2 focus:ring-cyan-300 focus:border-cyan">
                   <button onclick="verifyOtp()" id="verifyOtpBtn"
                           class="btn-blue font-bold px-5 py-3 rounded-lg text-sm flex items-center justify-center gap-2 sm:flex-shrink-0">
-                    <i class="fas fa-check"></i> Verify
+                    <i class="fas fa-check"></i> <span data-i18n="verify">Verify</span>
                   </button>
                 </div>
                 <p id="otpError" class="text-red-500 text-xs mt-2 hidden"></p>
                 <button onclick="resetToPhone()" class="text-xs text-cyan mt-3 hover:underline block">
-                  <i class="fas fa-arrow-left mr-1"></i>Change phone number
+                  <i class="fas fa-arrow-left mr-1"></i><span data-i18n="changePhoneNum">Change phone number</span>
                 </button>
               </div>
 
@@ -326,7 +326,7 @@ const getEmergencyInfo = async (req, res, next) => {
             <!-- Approval waiting card (hidden, shown after button click) -->
             <div id="approvalCard" class="hidden bg-navy rounded-2xl shadow-lg p-8 text-center text-white fade-in">
               <i class="fas fa-shield-alt text-lcyan text-5xl mb-4"></i>
-              <h2 class="text-xl font-bold mb-2">Approval Request Sent</h2>
+              <h2 class="text-xl font-bold mb-2" data-i18n="approvalSent">Approval Request Sent</h2>
               <p class="text-lcyan text-sm mb-6">
                 SMS sent to <strong>${totalContacts}</strong> emergency contact${totalContacts > 1 ? 's' : ''}.
                 Any one of them can tap <strong>Approve</strong> to unlock full medical details.
@@ -335,8 +335,8 @@ const getEmergencyInfo = async (req, res, next) => {
                 <div class="flex items-center justify-center gap-4 bg-white bg-opacity-10 rounded-xl py-5 px-4">
                   <i class="fas fa-spinner fa-spin text-3xl text-lcyan flex-shrink-0"></i>
                   <div class="text-left">
-                    <p class="font-bold text-white">Waiting for approval…</p>
-                    <p class="text-xs text-lcyan mt-1">Contact received Approve / Reject links via SMS</p>
+                    <p class="font-bold text-white" data-i18n="waitingApproval">Waiting for approval…</p>
+                    <p class="text-xs text-lcyan mt-1" data-i18n="approveRejectSent">Contact received Approve / Reject links via SMS</p>
                   </div>
                 </div>
               </div>
@@ -350,10 +350,9 @@ const getEmergencyInfo = async (req, res, next) => {
               <div class="flex items-start gap-3">
                 <i class="fas fa-info-circle text-cyan text-lg mt-0.5 flex-shrink-0"></i>
                 <div>
-                  <p class="text-sm font-semibold text-navy mb-1">Important Notice</p>
-                  <p class="text-sm text-blue">
-                    This information is for emergency medical purposes only.
-                    For life-threatening emergencies, call <strong>112</strong> immediately.
+                  <p class="text-sm font-semibold text-navy mb-1" data-i18n="importantNotice">Important Notice</p>
+                  <p class="text-sm text-blue" data-i18n="importantDesc">
+                    This information is for emergency medical purposes only. For life-threatening emergencies, call 112 immediately.
                   </p>
                 </div>
               </div>
@@ -386,7 +385,7 @@ const getEmergencyInfo = async (req, res, next) => {
                   });
                   if ((await r.json()).success) {
                     const b = document.getElementById('locationBanner');
-                    b.textContent = '📍 Precise GPS location sent to emergency contacts';
+                    b.textContent = t('gpsSent');
                     b.className = 'px-4 py-2 text-center text-sm font-medium fade-in bg-blue text-white';
                     b.classList.remove('hidden');
                   }
@@ -394,23 +393,15 @@ const getEmergencyInfo = async (req, res, next) => {
               }, () => {}, { timeout: 10000, enableHighAccuracy: true, maximumAge: 0 });
             })();
 
-            // Auto-load first aid — general steps only (no patient-specific warnings before approval)
-            (async function loadFirstAid() {
+            // Auto-load first aid — general steps from client-side translations
+            (function loadFirstAid() {
               const container = document.getElementById('firstAidContent');
-              try {
-                const r = await fetch('/emergency/${id}/firstaid');
-                const d = await r.json();
-                if (!d.success) throw new Error();
-                const { generalSteps } = d.data;
-                let html = '<ol class="list-decimal list-inside space-y-2">';
-                generalSteps.forEach(s => {
-                  html += '<li class="text-sm text-blue leading-relaxed">' + escapeHtml(s) + '</li>';
-                });
-                html += '</ol>';
-                container.innerHTML = html;
-              } catch {
-                container.innerHTML = '<p class="text-sm text-blue text-center py-2">Could not load instructions.</p>';
-              }
+              let html = '<ol class="list-decimal list-inside space-y-2">';
+              ['generalStep1','generalStep2','generalStep3','generalStep4','generalStep5','generalStep6'].forEach(function(key) {
+                html += '<li class="text-sm text-blue leading-relaxed" data-i18n="' + key + '">' + t(key) + '</li>';
+              });
+              html += '</ol>';
+              container.innerHTML = html;
             })();
 
             // ── Helper phone + OTP flow ───────────────────────────────────────
@@ -579,17 +570,17 @@ const getEmergencyInfo = async (req, res, next) => {
               html += '<div class="bg-navy rounded-xl p-5 text-white">';
               html += '<div class="flex items-center gap-3 mb-4">';
               html += '<i class="fas fa-hands-helping text-lcyan text-2xl flex-shrink-0"></i>';
-              html += '<h3 class="text-lg font-bold">What to do next — Helper Guide</h3>';
+              html += '<h3 class="text-lg font-bold">' + t('helperGuideTitle') + '</h3>';
               html += '</div>';
 
               // Immediate steps
               html += '<div class="space-y-2 mb-4">';
               const immediateSteps = [
-                { icon: '📞', text: 'Call <strong>112</strong> immediately if not already done', urgent: true },
-                { icon: '🧍', text: 'Stay with the patient — do not leave them alone' },
-                { icon: '🫀', text: 'If unconscious: Check airway, breathing, and pulse' },
-                { icon: '🚫', text: 'Do not give food, water, or any medication', urgent: true },
-                { icon: '📍', text: 'Note your exact location to guide the ambulance' }
+                { icon: '📞', text: t('stepCall112'), urgent: true },
+                { icon: '🧍', text: t('stepStayWith') },
+                { icon: '🫀', text: t('stepCheckAirway') },
+                { icon: '🚫', text: t('stepNoFood'), urgent: true },
+                { icon: '📍', text: t('stepNoteLocation') }
               ];
               immediateSteps.forEach(s => {
                 html += '<div class="flex items-start gap-3 bg-white bg-opacity-10 rounded-lg px-3 py-2">';
@@ -601,7 +592,7 @@ const getEmergencyInfo = async (req, res, next) => {
 
               // Tell paramedics box
               html += '<div class="bg-cyan bg-opacity-20 border border-cyan rounded-lg p-4 mb-1">';
-              html += '<p class="text-xs font-bold text-lcyan uppercase tracking-wide mb-2">Tell paramedics when they arrive:</p>';
+              html += '<p class="text-xs font-bold text-lcyan uppercase tracking-wide mb-2">' + t('tellParamedics') + '</p>';
               criticalLines.forEach(line => {
                 html += '<p class="text-sm text-white mb-1">• ' + line + '</p>';
               });
@@ -613,18 +604,22 @@ const getEmergencyInfo = async (req, res, next) => {
                 html += '<div class="bg-white rounded-xl border border-lcyan shadow-sm p-5">';
                 html += '<div class="flex items-center gap-2 mb-3">';
                 html += '<i class="fas fa-exclamation-triangle text-cyan text-lg"></i>';
-                html += '<h4 class="font-semibold text-navy">Patient-Specific Warnings</h4>';
+                html += '<h4 class="font-semibold text-navy">' + t('patientWarnings') + '</h4>';
                 html += '</div>';
                 html += '<div class="space-y-3">';
                 conditions.forEach(c => {
+                  var ck = c.condKey;
+                  var warning = ck ? buildCondWarning(ck, c) : escapeHtml(c.warning);
+                  var instructions = ck ? buildCondInstructions(ck, c) : c.instructions;
                   html += '<div class="bg-xlcyan rounded-lg p-4 border-l-4 border-cyan">';
-                  html += '<p class="font-bold text-navy text-sm mb-2">' + c.icon + ' ' + escapeHtml(c.warning) + '</p>';
+                  html += '<p class="font-bold text-navy text-sm mb-2">' + c.icon + ' ' + warning + '</p>';
                   html += '<ul class="space-y-1">';
-                  c.instructions.forEach(inst => {
-                    const bad = inst.startsWith('DO NOT');
+                  instructions.forEach(function(inst) {
+                    var text = typeof inst === 'string' ? inst : inst.text;
+                    var bad = inst.bad || (typeof text === 'string' && text.startsWith('DO NOT'));
                     html += '<li class="text-sm flex items-start gap-2">';
                     html += '<span class="flex-shrink-0 mt-0.5">' + (bad ? '🚫' : '✅') + '</span>';
-                    html += '<span class="' + (bad ? 'font-semibold text-navy' : 'text-blue') + '">' + escapeHtml(inst) + '</span>';
+                    html += '<span class="' + (bad ? 'font-semibold text-navy' : 'text-blue') + '">' + text + '</span>';
                     html += '</li>';
                   });
                   html += '</ul></div>';
@@ -638,7 +633,7 @@ const getEmergencyInfo = async (req, res, next) => {
 
             function displayFullDetails(data) {
               const section = document.getElementById('fullMedicalDetails');
-              let html = '<h3 class="text-lg font-bold text-navy flex items-center gap-2"><i class="fas fa-unlock text-cyan"></i>Full Medical Information</h3>';
+              let html = '<h3 class="text-lg font-bold text-navy flex items-center gap-2"><i class="fas fa-unlock text-cyan"></i>' + t('fullMedicalInfo') + '</h3>';
 
               const card = (icon, color, title, body) =>
                 '<div class="bg-white rounded-xl border border-lcyan shadow-sm p-5">' +
@@ -646,48 +641,48 @@ const getEmergencyInfo = async (req, res, next) => {
                 body + '</div>';
 
               if (data.allergies && data.allergies.toLowerCase() !== 'none')
-                html += card('fas fa-allergies','text-cyan','Allergies','<p class="text-blue text-sm info-text">'+escapeHtml(data.allergies)+'</p>');
+                html += card('fas fa-allergies','text-cyan',t('allergies'),'<p class="text-blue text-sm info-text">'+escapeHtml(data.allergies)+'</p>');
 
               if (data.medications && data.medications.toLowerCase() !== 'none')
-                html += card('fas fa-pills','text-cyan','Current Medications','<p class="text-blue text-sm info-text">'+escapeHtml(data.medications)+'</p>');
+                html += card('fas fa-pills','text-cyan',t('medications'),'<p class="text-blue text-sm info-text">'+escapeHtml(data.medications)+'</p>');
 
               if (data.medicalConditions && data.medicalConditions.toLowerCase() !== 'none')
-                html += card('fas fa-heartbeat','text-cyan','Medical Conditions','<p class="text-blue text-sm info-text">'+escapeHtml(data.medicalConditions)+'</p>');
+                html += card('fas fa-heartbeat','text-cyan',t('medicalConditions'),'<p class="text-blue text-sm info-text">'+escapeHtml(data.medicalConditions)+'</p>');
 
               if (data.knownTriggers && data.knownTriggers.trim())
-                html += card('fas fa-exclamation-triangle','text-cyan','Known Triggers','<p class="text-blue text-sm info-text">'+escapeHtml(data.knownTriggers)+'</p>');
+                html += card('fas fa-exclamation-triangle','text-cyan',t('knownTriggers'),'<p class="text-blue text-sm info-text">'+escapeHtml(data.knownTriggers)+'</p>');
 
               if (data.doctorName || data.doctorPhone || data.preferredHospital) {
                 let body = '';
                 if (data.doctorName) body += '<p class="text-blue text-sm mb-1"><span class="font-medium text-navy">Doctor:</span> '+escapeHtml(data.doctorName)+'</p>';
                 if (data.doctorPhone) body += '<p class="text-blue text-sm mb-1"><span class="font-medium text-navy">Phone:</span> <a href="tel:'+escapeHtml(data.doctorPhone.replace(/\\D/g,''))+'" class="underline">'+escapeHtml(data.doctorPhone)+'</a></p>';
                 if (data.preferredHospital) body += '<p class="text-blue text-sm"><span class="font-medium text-navy">Hospital:</span> '+escapeHtml(data.preferredHospital)+'</p>';
-                html += card('fas fa-user-md','text-cyan','Doctor &amp; Hospital',body);
+                html += card('fas fa-user-md','text-cyan',t('doctorHospital'),body);
               }
 
               if (data.insuranceProvider || data.insurancePolicyNumber) {
                 let body = '';
                 if (data.insuranceProvider) body += '<p class="text-blue text-sm mb-1"><span class="font-medium text-navy">Provider:</span> '+escapeHtml(data.insuranceProvider)+'</p>';
                 if (data.insurancePolicyNumber) body += '<p class="text-blue text-sm"><span class="font-medium text-navy">Policy No:</span> '+escapeHtml(data.insurancePolicyNumber)+'</p>';
-                html += card('fas fa-shield-alt','text-cyan','Insurance',body);
+                html += card('fas fa-shield-alt','text-cyan',t('insuranceCard'),body);
               }
 
               if (data.governmentIdNumber)
-                html += card('fas fa-id-card','text-cyan','Government ID','<p class="text-blue font-mono">'+escapeHtml(data.governmentIdNumber)+'</p>');
+                html += card('fas fa-id-card','text-cyan',t('govId'),'<p class="text-blue font-mono">'+escapeHtml(data.governmentIdNumber)+'</p>');
 
               if (data.dietaryRestrictions)
-                html += card('fas fa-utensils','text-cyan','Dietary Restrictions','<p class="text-blue text-sm">'+escapeHtml(data.dietaryRestrictions)+'</p>');
+                html += card('fas fa-utensils','text-cyan',t('dietaryCard'),'<p class="text-blue text-sm">'+escapeHtml(data.dietaryRestrictions)+'</p>');
 
               if (data.organDonor === true || data.organDonor === 'true')
-                html += card('fas fa-heart','text-cyan','Organ Donor','<p class="font-semibold text-blue">✓ Registered Organ Donor</p>');
+                html += card('fas fa-heart','text-cyan',t('organDonorCard'),'<p class="font-semibold text-blue">✓ ' + t('organDonorRegistered') + '</p>');
 
               if (data.address || data.city || data.state) {
                 const parts = [data.address, data.city, data.state].filter(Boolean);
-                html += card('fas fa-map-marker-alt','text-cyan','Home Address','<p class="text-blue text-sm">'+escapeHtml(parts.join(', '))+'</p>');
+                html += card('fas fa-map-marker-alt','text-cyan',t('homeAddress'),'<p class="text-blue text-sm">'+escapeHtml(parts.join(', '))+'</p>');
               }
 
               if (data.notes && data.notes.trim())
-                html += card('fas fa-sticky-note','text-cyan','Additional Notes','<p class="text-blue text-sm info-text">'+escapeHtml(data.notes)+'</p>');
+                html += card('fas fa-sticky-note','text-cyan',t('additionalNotes'),'<p class="text-blue text-sm info-text">'+escapeHtml(data.notes)+'</p>');
 
               section.innerHTML = html;
             }
@@ -695,6 +690,61 @@ const getEmergencyInfo = async (req, res, next) => {
             function escapeHtml(t) {
               if (!t) return '';
               return String(t).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+            }
+
+            function buildCondWarning(ck, c) {
+              var STATIC_KEYS = ['diabetes','heart','epilepsy','asthma','hyper','bloodthin','kidney'];
+              if (STATIC_KEYS.indexOf(ck) !== -1) return t('cond_' + ck + '_w');
+              var val = escapeHtml(c.dynValue || '');
+              if (ck === 'allergy') return t('cond_allergy_w') + ' ' + val;
+              if (ck === 'triggers') return t('cond_triggers_w') + ' ' + val;
+              if (ck === 'doctor') return t('cond_doctor_w') + ' ' + val;
+              if (ck === 'hospital') return t('cond_hospital_w') + ' ' + val;
+              if (ck === 'blood') return t('cond_blood_w') + ' ' + val;
+              return escapeHtml(c.warning);
+            }
+
+            function buildCondInstructions(ck, c) {
+              var STATIC_KEYS = ['diabetes','heart','epilepsy','asthma','hyper','bloodthin','kidney'];
+              var COUNT = {diabetes:6,heart:7,epilepsy:7,asthma:6,hyper:6,bloodthin:5,kidney:4};
+              if (STATIC_KEYS.indexOf(ck) !== -1) {
+                var result = [];
+                for (var i = 1; i <= COUNT[ck]; i++) {
+                  var key = 'cond_' + ck + '_' + i;
+                  var text = t(key);
+                  result.push({ text: text, bad: text.indexOf('DO NOT') === 0 || text.indexOf('न दें') === 0 || text.indexOf('न ददातु') === 0 || text.indexOf('देऊ नका') === 0 || text.indexOf('கொடுக்காதீர்கள்') === 0 || text.indexOf('ಕೊಡಬೇಡಿ') === 0 || text.indexOf('ఇవ్వకండి') === 0 });
+                }
+                return result;
+              }
+              var val = escapeHtml(c.dynValue || '');
+              var phone = escapeHtml(c.dynPhone || '');
+              if (ck === 'allergy') return [
+                { text: t('cond_allergy_1') + ' ' + val, bad: true },
+                { text: t('cond_allergy_2'), bad: false },
+                { text: t('cond_allergy_3'), bad: false },
+                { text: t('cond_allergy_4'), bad: false }
+              ];
+              if (ck === 'triggers') return [
+                { text: t('cond_triggers_1') + ' ' + val, bad: false },
+                { text: t('cond_triggers_2'), bad: false },
+                { text: t('cond_triggers_3'), bad: false }
+              ];
+              if (ck === 'doctor') {
+                var di = [{ text: t('cond_doctor_1'), bad: false }];
+                if (phone) di.push({ text: t('cond_doctor_2') + ' ' + phone, bad: false });
+                return di;
+              }
+              if (ck === 'hospital') return [
+                { text: t('cond_hospital_1') + ' ' + val, bad: false },
+                { text: t('cond_hospital_2'), bad: false },
+                { text: t('cond_hospital_3'), bad: false }
+              ];
+              if (ck === 'blood') return [
+                { text: t('cond_blood_1') + ' ' + val, bad: false },
+                { text: t('cond_blood_2'), bad: false },
+                { text: t('cond_blood_3'), bad: false }
+              ];
+              return c.instructions.map(function(s) { return { text: escapeHtml(s), bad: s.startsWith('DO NOT') }; });
             }
 
             // ── Multi-language support ────────────────────────────────────────
@@ -714,12 +764,25 @@ const getEmergencyInfo = async (req, res, next) => {
             }
             function applyLang() {
               if (typeof TRANSLATIONS === 'undefined') return;
+              if (typeof t !== 'function') return;
               var lang = getCurrentLang();
               document.documentElement.lang = lang;
               document.documentElement.dir = (TRANSLATIONS[lang] && TRANSLATIONS[lang].dir) || 'ltr';
               document.querySelectorAll('[data-i18n]').forEach(function(el) {
-                var val = t(el.getAttribute('data-i18n'));
-                if (val) el.textContent = val;
+                try {
+                  var val = t(el.getAttribute('data-i18n'));
+                  if (val) {
+                    var n = el.getAttribute('data-i18n-n');
+                    if (n) val = val.replace('{n}', n);
+                    el.textContent = val;
+                  }
+                } catch(e) { /* skip */ }
+              });
+              var genderMap = { 'Male':'genderMale','Female':'genderFemale','Other':'genderOther','Prefer not to say':'genderNoSay' };
+              document.querySelectorAll('[data-i18n-gender]').forEach(function(el) {
+                var raw = el.getAttribute('data-i18n-gender');
+                var key = genderMap[raw];
+                if (key) el.textContent = t(key);
               });
             }
             function changeLang(lang) {

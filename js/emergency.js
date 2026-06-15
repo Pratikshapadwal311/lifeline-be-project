@@ -53,14 +53,18 @@ function initLanguageSelector() {
  * Apply current language translations to all data-i18n elements
  */
 function applyTranslations() {
+    if (typeof TRANSLATIONS === 'undefined') return;
+    if (typeof t !== 'function') return;
     const lang = getCurrentLang();
     document.documentElement.lang = lang;
     document.documentElement.dir = TRANSLATIONS[lang]?.dir || 'ltr';
 
     document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        const value = t(key);
-        if (value) el.textContent = value;
+        try {
+            const key = el.getAttribute('data-i18n');
+            const value = t(key);
+            if (value) el.textContent = value;
+        } catch(e) { /* skip individual element errors */ }
     });
 }
 
